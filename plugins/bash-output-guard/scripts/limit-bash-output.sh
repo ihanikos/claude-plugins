@@ -26,6 +26,12 @@ input=$(cat)
 # Extract the original command
 original_cmd=$(echo "$input" | jq -r '.tool_input.command')
 
+# Validate that we got a command (jq returns "null" for missing fields)
+if [ -z "$original_cmd" ] || [ "$original_cmd" = "null" ]; then
+  echo '{"error": "No command found in tool_input"}' >&2
+  exit 1
+fi
+
 # Base64 encode the command to safely embed it without heredoc delimiter collisions.
 # This prevents injection attacks where the command contains the heredoc delimiter.
 encoded_cmd=$(printf '%s' "$original_cmd" | base64)
