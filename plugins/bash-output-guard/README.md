@@ -41,16 +41,17 @@ Command runs normally, exit code preserved.
 ### Output over limit
 ```
 $ seq 1 1000000
-[ERROR: Output discarded - size was 6888896 bytes, limit is 100000 bytes]
+[ERROR: Output discarded - size was 6888896 bytes, limit is 100000 bytes. Command exit code was 0]
 ```
-Output is discarded entirely, warning shows actual size.
+Output is discarded entirely, warning shows actual size and original exit code.
 
 ## Technical Details
 
 - Uses a PreToolUse hook to wrap bash commands
 - Does not impose any timeout (Claude's timeout controls apply)
-- Preserves exit codes for commands under the limit
+- Preserves exit codes (both when output is under limit and when discarded)
 - Works with pipes, redirects, and subshells
+- Preserves all tool_input fields (workdir, timeout, etc.)
 - Both stdout and stderr are captured together and count toward the size limit
 - Requires `jq` to be installed (included in devcontainer)
 
