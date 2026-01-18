@@ -26,8 +26,8 @@ Create `.devcontainer/devcontainer.json` in the plugin repository:
       "packages": "tmux,jq"
     }
   },
-  "initializeCommand": "mkdir -p ${localWorkspaceFolder}/.devcontainer/claude-auth && cp ${localEnv:HOME}/.claude/.credentials.json ${localWorkspaceFolder}/.devcontainer/claude-auth/ && cp ${localEnv:HOME}/.claude.json ${localWorkspaceFolder}/.devcontainer/claude-auth/",
-  "postCreateCommand": "mkdir -p /home/vscode/.claude && cp /workspaces/${localWorkspaceFolderBasename}/.devcontainer/claude-auth/.credentials.json /home/vscode/.claude/ && cp /workspaces/${localWorkspaceFolderBasename}/.devcontainer/claude-auth/.claude.json /home/vscode/"
+  "initializeCommand": "mkdir -p ${localWorkspaceFolder}/.devcontainer/claude-auth && ([ -f ${localEnv:HOME}/.claude/.credentials.json ] && cp ${localEnv:HOME}/.claude/.credentials.json ${localWorkspaceFolder}/.devcontainer/claude-auth/ || echo 'Warning: .credentials.json not found') && ([ -f ${localEnv:HOME}/.claude.json ] && cp ${localEnv:HOME}/.claude.json ${localWorkspaceFolder}/.devcontainer/claude-auth/ || echo 'Warning: .claude.json not found')",
+  "postCreateCommand": "mkdir -p /home/vscode/.claude && ([ -f .devcontainer/claude-auth/.credentials.json ] && cp .devcontainer/claude-auth/.credentials.json /home/vscode/.claude/ || true) && ([ -f .devcontainer/claude-auth/.claude.json ] && cp .devcontainer/claude-auth/.claude.json /home/vscode/ || true)"
 }
 ```
 
@@ -192,8 +192,9 @@ Common issues with plugin.json:
    - `Space` - Toggle selection
    - `u` - Update (in Marketplaces tab)
 
-5. **Debug hooks**: Add logging to your hook script:
+5. **Debug hooks**: Use environment variables for conditional logging:
    ```bash
-   echo "HOOK TRIGGERED" >> /tmp/hook-debug.log
+   [ -n "$MY_HOOK_DEBUG" ] && echo "HOOK TRIGGERED" >> /tmp/hook-debug.log
    ```
-   Then check: `devcontainer exec --workspace-folder . cat /tmp/hook-debug.log`
+   Then run with debugging: `MY_HOOK_DEBUG=1 claude --dangerously-skip-permissions`
+   Check logs: `devcontainer exec --workspace-folder . cat /tmp/hook-debug.log`
