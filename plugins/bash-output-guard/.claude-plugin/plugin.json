@@ -1,0 +1,13 @@
+{
+  "name": "bash-output-guard",
+  "description": "Prevents runaway bash command output from hanging Claude sessions by discarding output that exceeds a configurable size limit",
+  "version": "1.0.0",
+  "author": {
+    "name": "ihanikos"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ihanikos/claude-plugins"
+  },
+  "license": "MIT"
+}
