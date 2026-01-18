@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$CLAUDE_PLUGIN_DIR/scripts/limit-bash-output.sh"
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/limit-bash-output.sh"
           }
         ]
       }

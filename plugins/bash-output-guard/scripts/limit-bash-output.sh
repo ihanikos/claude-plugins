@@ -2,6 +2,8 @@
 # PreToolUse hook to guard against runaway bash command output
 # If output exceeds limit, discard entirely and return warning with actual size
 
+echo "HOOK TRIGGERED" >> /tmp/hook-debug.log
+
 MAX_BYTES=${BASH_OUTPUT_GUARD_MAX_BYTES:-100000}
 
 # Read JSON input from stdin
