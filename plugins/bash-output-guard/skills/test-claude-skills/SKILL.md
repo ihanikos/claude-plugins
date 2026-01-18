@@ -20,14 +20,23 @@ Create `.devcontainer/devcontainer.json` in the plugin repository:
   "features": {
     "ghcr.io/devcontainers/features/node:1": {
       "version": "lts"
+    },
+    "ghcr.io/anthropics/devcontainer-features/claude-code:1": {},
+    "ghcr.io/devcontainers-extra/features/apt-packages:1": {
+      "packages": "tmux,jq"
     }
   },
-  "postCreateCommand": "npm install -g @anthropic-ai/claude-code && mkdir -p /home/vscode/.claude && cp /tmp/claude-creds/.credentials.json /home/vscode/.claude/",
-  "mounts": [
-    "source=${localEnv:HOME}/.claude/.credentials.json,target=/tmp/claude-creds/.credentials.json,type=bind,readonly"
-  ]
+  "initializeCommand": "mkdir -p ${localWorkspaceFolder}/.devcontainer/claude-auth && cp ${localEnv:HOME}/.claude/.credentials.json ${localWorkspaceFolder}/.devcontainer/claude-auth/ && cp ${localEnv:HOME}/.claude.json ${localWorkspaceFolder}/.devcontainer/claude-auth/",
+  "postCreateCommand": "mkdir -p /home/vscode/.claude && cp /workspaces/${localWorkspaceFolderBasename}/.devcontainer/claude-auth/.credentials.json /home/vscode/.claude/ && cp /workspaces/${localWorkspaceFolderBasename}/.devcontainer/claude-auth/.claude.json /home/vscode/"
 }
 ```
+
+**Key points:**
+- Uses devcontainer features for Claude Code, Node.js, tmux, and jq
+- Copies both `.credentials.json` (OAuth tokens) AND `.claude.json` (onboarding state) - both are required
+- `initializeCommand` runs on host before container starts
+- `postCreateCommand` runs inside container after creation
+- Add `.devcontainer/claude-auth/` to `.gitignore` to avoid committing credentials
 
 ### 2. Start the devcontainer
 
@@ -48,42 +57,33 @@ devcontainer up --workspace-folder . --remove-existing-container
 
 ## Testing with tmux
 
-Interactive Claude sessions require a TTY. Use tmux to control Claude inside the container:
+Interactive Claude sessions require a TTY. Use tmux to control Claude inside the container.
 
-### Start tmux session in container
+### Start tmux session
 
 ```bash
 devcontainer exec --workspace-folder . tmux new-session -d -s claude-test
 ```
 
-### Send commands to Claude
+### Start Claude
 
 ```bash
-# Start Claude with your plugin
-devcontainer exec --workspace-folder . tmux send-keys -t claude-test 'claude --plugin-dir /workspaces/your-plugin --dangerously-skip-permissions' Enter
-
-# Wait for Claude to start
+devcontainer exec --workspace-folder . tmux send-keys -t claude-test 'cd /workspaces/your-repo && claude --dangerously-skip-permissions' Enter
 sleep 5
-
-# Send a command to test
-devcontainer exec --workspace-folder . tmux send-keys -t claude-test 'Run: echo hello' Enter
-
-# Capture output
-devcontainer exec --workspace-folder . tmux capture-pane -t claude-test -p
 ```
 
-### Install plugin and test
+### Capture output
 
 ```bash
-# Send /plugin install command
-devcontainer exec --workspace-folder . tmux send-keys -t claude-test '/plugin install your-plugin' Enter
-sleep 3
+# Capture last 50 lines
+devcontainer exec --workspace-folder . tmux capture-pane -t claude-test -p -S -50
+```
 
-# Test the plugin
-devcontainer exec --workspace-folder . tmux send-keys -t claude-test 'your test command here' Enter
-sleep 5
+### Send text to Claude
 
-# Capture result
+```bash
+devcontainer exec --workspace-folder . tmux send-keys -t claude-test 'your message here' Enter
+sleep 10  # Wait for response
 devcontainer exec --workspace-folder . tmux capture-pane -t claude-test -p -S -50
 ```
 
@@ -93,12 +93,107 @@ devcontainer exec --workspace-folder . tmux capture-pane -t claude-test -p -S -5
 devcontainer exec --workspace-folder . tmux kill-session -t claude-test
 ```
 
+## Installing Plugins from Local Marketplace
+
+To test plugins with hooks, you must install via the `/plugin` UI (not `--plugin-dir`).
+
+### 1. Add local marketplace
+
+```bash
+# Open plugin menu
+devcontainer exec --workspace-folder . tmux send-keys -t claude-test '/plugin' Enter
+sleep 2
+
+# Navigate to Marketplaces tab (press Right twice)
+devcontainer exec --workspace-folder . tmux send-keys -t claude-test Right Right
+sleep 1
+
+# Select "Add Marketplace"
+devcontainer exec --workspace-folder . tmux send-keys -t claude-test Enter
+sleep 1
+
+# Type the local path (repo root containing .claude-plugin/marketplace.json)
+devcontainer exec --workspace-folder . tmux send-keys -t claude-test '/workspaces/your-repo' Enter
+sleep 2
+```
+
+### 2. Install plugin
+
+```bash
+# Go to Discover tab
+devcontainer exec --workspace-folder . tmux send-keys -t claude-test Left Left
+sleep 1
+
+# Select your plugin and press Enter for details
+devcontainer exec --workspace-folder . tmux send-keys -t claude-test Enter
+sleep 1
+
+# Press Enter to install (user scope)
+devcontainer exec --workspace-folder . tmux send-keys -t claude-test Enter
+sleep 3
+```
+
+### 3. Verify installation
+
+```bash
+# Check Installed tab
+devcontainer exec --workspace-folder . tmux send-keys -t claude-test '/plugin' Enter
+sleep 2
+devcontainer exec --workspace-folder . tmux send-keys -t claude-test Right  # Go to Installed
+sleep 1
+devcontainer exec --workspace-folder . tmux capture-pane -t claude-test -p -S -30
+```
+
+Look for `✔ enabled` status. If you see `✘ error`, press Enter on the plugin to see details.
+
+### 4. Restart Claude after plugin changes
+
+Plugins load at startup. After installing or updating:
+
+```bash
+devcontainer exec --workspace-folder . tmux send-keys -t claude-test C-d  # Exit Claude
+sleep 2
+devcontainer exec --workspace-folder . tmux send-keys -t claude-test 'claude --dangerously-skip-permissions' Enter
+sleep 5
+```
+
+## Plugin Schema Requirements
+
+Common issues with plugin.json:
+
+1. **Don't specify `hooks` field** - Claude auto-loads `hooks/hooks.json` from plugin root. Specifying it causes "duplicate hooks file" error.
+
+2. **`repository` must be a string**, not an object:
+   ```json
+   "repository": "https://github.com/user/repo"
+   ```
+   Not:
+   ```json
+   "repository": { "type": "git", "url": "..." }
+   ```
+
+3. **Bump version** when making changes - Claude caches plugins by version.
+
 ## Important Notes
 
-1. **Hooks via `--plugin-dir`**: The `--plugin-dir` flag loads commands/agents/skills but may not load hooks. For hooks to work, install the plugin via `/plugin install` or place hooks in `.claude/settings.json`.
+1. **Hooks require proper installation**: The `--plugin-dir` flag loads skills/commands but NOT hooks. For hooks to work, install via `/plugin` UI.
 
-2. **Credentials**: The devcontainer mounts credentials read-only from host, then copies them so Claude can write to the directory.
+2. **Both credential files required**:
+   - `~/.claude/.credentials.json` - OAuth tokens
+   - `~/.claude.json` - Onboarding state (skips first-run setup)
 
-3. **Non-interactive mode (`-p`)**: Slash commands like `/plugin` don't work in `-p` mode. Use tmux for interactive testing.
+3. **Non-interactive mode (`-p`)**: Slash commands don't work in `-p` mode. Use tmux.
 
-4. **Capturing output**: Use `tmux capture-pane -p -S -N` where N is lines of history to capture.
+4. **Plugin UI navigation**:
+   - `Left`/`Right` or `Tab` - Switch tabs (Discover/Installed/Marketplaces)
+   - `Up`/`Down` - Navigate items
+   - `Enter` - Select/confirm
+   - `Escape` - Go back
+   - `Space` - Toggle selection
+   - `u` - Update (in Marketplaces tab)
+
+5. **Debug hooks**: Add logging to your hook script:
+   ```bash
+   echo "HOOK TRIGGERED" >> /tmp/hook-debug.log
+   ```
+   Then check: `devcontainer exec --workspace-folder . cat /tmp/hook-debug.log`
