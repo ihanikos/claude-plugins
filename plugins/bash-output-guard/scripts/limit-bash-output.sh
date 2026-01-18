@@ -35,19 +35,18 @@ bash "$__cmd_file" > "$__tmp" 2>&1 || __ec=$?
 __size=$(wc -c < "$__tmp")
 if [ "$__size" -gt '"${MAX_BYTES}"' ]; then
   echo "[ERROR: Output discarded - size was $__size bytes, limit is '"${MAX_BYTES}"' bytes. Command exit code was $__ec]"
-  exit 1
+  exit $__ec
 else
   cat "$__tmp"
   exit $__ec
 fi
 '
 
-# Return the modified input
-jq -n --arg cmd "$wrapped_cmd" '{
+# Return the modified input, preserving all original tool_input fields except command
+# This ensures workdir, timeout, and other fields are not lost
+echo "$input" | jq --arg cmd "$wrapped_cmd" '{
   "hookSpecificOutput": {
     "hookEventName": "PreToolUse",
-    "updatedInput": {
-      "command": $cmd
-    }
+    "updatedInput": (.tool_input + {"command": $cmd})
   }
 }'
