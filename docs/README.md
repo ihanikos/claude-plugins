@@ -6,7 +6,7 @@ A collection of Claude Code plugins by ihanikos.
 
 | Plugin | Description |
 |--------|-------------|
-| [bash-output-guard](./plugins/bash-output-guard) | Prevents runaway bash command output from hanging Claude sessions |
+| [bash-output-guard](../plugins/bash-output-guard) | Prevents runaway bash command output from hanging Claude sessions |
 
 ## Installation
 
