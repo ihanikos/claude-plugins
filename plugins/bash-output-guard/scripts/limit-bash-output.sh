@@ -1,6 +1,13 @@
 #!/bin/bash
 # PreToolUse hook to guard against runaway bash command output
 # If output exceeds limit, discard entirely and return warning with actual size
+# Note: Both stdout and stderr are captured together and count toward the size limit
+
+# Check for required dependency
+if ! command -v jq >/dev/null 2>&1; then
+  echo '{"error": "bash-output-guard plugin requires jq to be installed"}' >&2
+  exit 1
+fi
 
 # Debug logging (only if BASH_OUTPUT_GUARD_DEBUG is set)
 [ -n "$BASH_OUTPUT_GUARD_DEBUG" ] && echo "HOOK TRIGGERED" >> /tmp/hook-debug.log
@@ -27,7 +34,7 @@ trap "rm -f \"$__cmd_file\" \"$__tmp\"" EXIT
 bash "$__cmd_file" > "$__tmp" 2>&1 || __ec=$?
 __size=$(wc -c < "$__tmp")
 if [ "$__size" -gt '"${MAX_BYTES}"' ]; then
-  echo "[ERROR: Output discarded - size was $__size bytes, limit is '"${MAX_BYTES}"' bytes]"
+  echo "[ERROR: Output discarded - size was $__size bytes, limit is '"${MAX_BYTES}"' bytes. Command exit code was $__ec]"
   exit 1
 else
   cat "$__tmp"

@@ -51,3 +51,15 @@ Output is discarded entirely, warning shows actual size.
 - Does not impose any timeout (Claude's timeout controls apply)
 - Preserves exit codes for commands under the limit
 - Works with pipes, redirects, and subshells
+- Both stdout and stderr are captured together and count toward the size limit
+- Requires `jq` to be installed (included in devcontainer)
+
+## Debugging
+
+Enable debug logging by setting the `BASH_OUTPUT_GUARD_DEBUG` environment variable:
+
+```bash
+export BASH_OUTPUT_GUARD_DEBUG=1
+```
+
+Debug output is written to `/tmp/hook-debug.log`.
