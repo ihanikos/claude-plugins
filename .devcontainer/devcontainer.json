@@ -1,0 +1,15 @@
+{
+  "name": "Claude Plugins Test",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "lts"
+    },
+    "ghcr.io/anthropics/devcontainer-features/claude-code:1": {},
+    "ghcr.io/devcontainers-extra/features/apt-packages:1": {
+      "packages": "tmux,jq"
+    }
+  },
+  "initializeCommand": "mkdir -p ${localWorkspaceFolder}/.devcontainer/claude-auth && cp ${localEnv:HOME}/.claude/.credentials.json ${localWorkspaceFolder}/.devcontainer/claude-auth/ && cp ${localEnv:HOME}/.claude.json ${localWorkspaceFolder}/.devcontainer/claude-auth/",
+  "postCreateCommand": "mkdir -p /home/vscode/.claude && cp /workspaces/claude-plugins/.devcontainer/claude-auth/.credentials.json /home/vscode/.claude/ && cp /workspaces/claude-plugins/.devcontainer/claude-auth/.claude.json /home/vscode/"
+}
