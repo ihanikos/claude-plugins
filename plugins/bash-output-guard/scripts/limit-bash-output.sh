@@ -14,6 +14,12 @@ fi
 
 MAX_BYTES=${BASH_OUTPUT_GUARD_MAX_BYTES:-100000}
 
+# Validate MAX_BYTES is a positive integer
+if ! [[ "$MAX_BYTES" =~ ^[0-9]+$ ]] || [ "$MAX_BYTES" -eq 0 ]; then
+  echo '{"error": "BASH_OUTPUT_GUARD_MAX_BYTES must be a positive integer"}' >&2
+  exit 1
+fi
+
 # Read JSON input from stdin
 input=$(cat)
 
