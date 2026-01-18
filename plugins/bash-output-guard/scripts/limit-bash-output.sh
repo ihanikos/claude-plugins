@@ -20,17 +20,21 @@ input=$(cat)
 # Extract the original command
 original_cmd=$(echo "$input" | jq -r '.tool_input.command')
 
-# Escape the command for safe embedding in a shell string.
-# We write the command to a temp file and source it, avoiding quoting issues.
-# This approach handles all shell metacharacters safely.
+# Base64 encode the command to safely embed it without heredoc delimiter collisions.
+# This prevents injection attacks where the command contains the heredoc delimiter.
+encoded_cmd=$(printf '%s' "$original_cmd" | base64)
+
+# Build wrapped command that:
+# 1. Decodes the base64 command to a temp file
+# 2. Executes it and captures output
+# 3. Checks size and either returns output or error message
+# 4. Preserves exit code in all cases
 wrapped_cmd='
 __cmd_file=$(mktemp)
 __tmp=$(mktemp)
 __ec=0
-cat > "$__cmd_file" <<'"'"'__HOOK_CMD_EOF__'"'"'
-'"${original_cmd}"'
-__HOOK_CMD_EOF__
 trap "rm -f \"$__cmd_file\" \"$__tmp\"" EXIT
+echo "'"${encoded_cmd}"'" | base64 -d > "$__cmd_file"
 bash "$__cmd_file" > "$__tmp" 2>&1 || __ec=$?
 __size=$(wc -c < "$__tmp")
 if [ "$__size" -gt '"${MAX_BYTES}"' ]; then
