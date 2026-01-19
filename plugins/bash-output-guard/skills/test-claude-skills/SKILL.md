@@ -59,6 +59,52 @@ devcontainer up --workspace-folder . --remove-existing-container
 
 Interactive Claude sessions require a TTY. Use tmux to control Claude inside the container.
 
+**Important**: Always use `--dangerously-skip-permissions` inside the container for testing. This bypasses permission prompts and lets you see hook-transformed commands directly.
+
+### API Response Times
+
+Claude API response times are unpredictable - sometimes fast (5-10s), sometimes slow (60s+), especially:
+- First request after starting Claude
+- When using Opus models
+- During high API load
+
+The sleep times in examples below are minimums. Use the polling helper function for reliable waiting.
+
+### Helper Function for Waiting
+
+Use this function to wait for Claude responses with a timeout:
+
+```bash
+# Wait for Claude output to stabilize (with timeout)
+wait_for_claude() {
+  local timeout=${1:-60}
+  local prev_output=""
+  local stable_count=0
+  local elapsed=0
+
+  while [ $elapsed -lt $timeout ]; do
+    output=$(devcontainer exec --workspace-folder . tmux capture-pane -t claude-test -p -S -30 2>/dev/null)
+    if [ "$output" = "$prev_output" ]; then
+      stable_count=$((stable_count + 1))
+      # Output stable for 3 checks (6 seconds) = likely done
+      if [ $stable_count -ge 3 ]; then
+        echo "$output"
+        return 0
+      fi
+    else
+      stable_count=0
+      prev_output="$output"
+    fi
+    sleep 2
+    elapsed=$((elapsed + 2))
+  done
+
+  echo "Timeout after ${timeout}s waiting for response"
+  echo "$output"
+  return 1
+}
+```
+
 ### Start tmux session
 
 ```bash
@@ -69,7 +115,7 @@ devcontainer exec --workspace-folder . tmux new-session -d -s claude-test
 
 ```bash
 devcontainer exec --workspace-folder . tmux send-keys -t claude-test 'cd /workspaces/your-repo && claude --dangerously-skip-permissions' Enter
-sleep 5
+sleep 5  # Initial startup is usually fast
 ```
 
 ### Capture output
@@ -83,8 +129,7 @@ devcontainer exec --workspace-folder . tmux capture-pane -t claude-test -p -S -5
 
 ```bash
 devcontainer exec --workspace-folder . tmux send-keys -t claude-test 'your message here' Enter
-sleep 10  # Wait for response
-devcontainer exec --workspace-folder . tmux capture-pane -t claude-test -p -S -50
+wait_for_claude 120  # Wait up to 120 seconds
 ```
 
 ### Clean up
