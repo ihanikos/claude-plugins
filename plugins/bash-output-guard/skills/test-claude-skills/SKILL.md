@@ -125,6 +125,32 @@ sleep 5  # Initial startup is usually fast
 devcontainer exec --workspace-folder . tmux capture-pane -t claude-test -p -S -50
 ```
 
+### Reading tmux output - submitted vs pending input
+
+When reading captured tmux output, distinguish between submitted and pending input:
+
+**Pending input (NOT yet submitted):**
+- Text appears with `❯` prefix on the same line
+- Text appears between two separator lines (`───────...`)
+- Example:
+  ```
+  ❯ echo hello world
+  ─────────────────────────────────────────────────
+  ```
+
+**Submitted input (processed by Claude):**
+- Text appears WITHOUT `❯` prefix
+- Claude's response (`●` bullets) appears below
+- Example:
+  ```
+  ❯ echo hello world
+
+  ● Bash(echo hello world)
+    ⎿  hello world
+  ```
+
+If input appears pending, send `C-m` again to submit it.
+
 ### Send text to Claude
 
 ```bash
