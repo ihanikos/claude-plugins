@@ -32,6 +32,20 @@ if [ -z "$original_cmd" ] || [ "$original_cmd" = "null" ]; then
   exit 1
 fi
 
+# Skip wrapping for background commands - Claude Code manages their output separately
+# and our wrapper would interfere with its output file mechanism
+run_in_background=$(echo "$input" | jq -r '.tool_input.run_in_background // false')
+if [ "$run_in_background" = "true" ]; then
+  # Pass through unchanged
+  echo "$input" | jq '{
+    "hookSpecificOutput": {
+      "hookEventName": "PreToolUse",
+      "updatedInput": .tool_input
+    }
+  }'
+  exit 0
+fi
+
 # Base64 encode the command to safely embed it without heredoc delimiter collisions.
 # This prevents injection attacks where the command contains the heredoc delimiter.
 encoded_cmd=$(printf '%s' "$original_cmd" | base64)
