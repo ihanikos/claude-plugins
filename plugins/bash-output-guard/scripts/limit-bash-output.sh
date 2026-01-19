@@ -41,7 +41,17 @@ encoded_cmd=$(printf '%s' "$original_cmd" | base64)
 # 2. Executes it and captures output
 # 3. Checks size and either returns output or error message
 # 4. Preserves exit code in all cases
-wrapped_cmd='
+#
+# The command preview shows the original command in a comment block for user visibility,
+# followed by the execution wrapper that handles output size limiting.
+
+# Escape the original command for safe inclusion in a shell comment
+# Replace newlines with \n and prefix each line with #
+escaped_for_comment=$(printf '%s' "$original_cmd" | sed 's/^/# /')
+
+wrapped_cmd='# [bash-output-guard] Original command:
+'"${escaped_for_comment}"'
+# [bash-output-guard] Wrapped for output limiting (max '"${MAX_BYTES}"' bytes):
 __cmd_file=$(mktemp)
 __tmp=$(mktemp)
 __ec=0
