@@ -227,9 +227,16 @@ Common issues with plugin.json:
    - `~/.claude/.credentials.json` - OAuth tokens
    - `~/.claude.json` - Onboarding state (skips first-run setup)
 
-3. **Non-interactive mode (`-p`)**: Slash commands don't work in `-p` mode. Use tmux.
+3. **Credentials can become stale**: The `initializeCommand` only copies credentials when the container is created. If your OAuth tokens expire or refresh, the container will have stale credentials (401 errors in debug logs). Refresh them manually:
+   ```bash
+   # Copy fresh credentials into running container
+   devcontainer exec --workspace-folder . bash -c 'cat > /home/vscode/.claude/.credentials.json' < ~/.claude/.credentials.json
+   devcontainer exec --workspace-folder . bash -c 'cat > /home/vscode/.claude.json' < ~/.claude.json
+   ```
 
-4. **Plugin UI navigation**:
+4. **Non-interactive mode (`-p`)**: Slash commands don't work in `-p` mode. Use tmux for interactive testing.
+
+5. **Plugin UI navigation**:
    - `Left`/`Right` or `Tab` - Switch tabs (Discover/Installed/Marketplaces)
    - `Up`/`Down` - Navigate items
    - `Enter` - Select/confirm
@@ -237,7 +244,7 @@ Common issues with plugin.json:
    - `Space` - Toggle selection
    - `u` - Update (in Marketplaces tab)
 
-5. **Debug hooks**: Use environment variables for conditional logging:
+6. **Debug hooks**: Use environment variables for conditional logging:
    ```bash
    [ -n "$MY_HOOK_DEBUG" ] && echo "HOOK TRIGGERED" >> /tmp/hook-debug.log
    ```
