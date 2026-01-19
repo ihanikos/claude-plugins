@@ -46,8 +46,8 @@ encoded_cmd=$(printf '%s' "$original_cmd" | base64)
 # followed by the execution wrapper that handles output size limiting.
 
 # Escape the original command for safe inclusion in a shell comment
-# Replace newlines with \n and prefix each line with #
-escaped_for_comment=$(printf '%s' "$original_cmd" | sed 's/^/# /')
+# Escape backticks and $ to prevent accidental expansion, then prefix each line with #
+escaped_for_comment=$(printf '%s' "$original_cmd" | sed 's/[`$\\]/\\&/g' | sed 's/^/# /')
 
 wrapped_cmd='# [bash-output-guard] Original command:
 '"${escaped_for_comment}"'
@@ -55,7 +55,7 @@ wrapped_cmd='# [bash-output-guard] Original command:
 __cmd_file=$(mktemp)
 __tmp=$(mktemp)
 __ec=0
-trap "rm -f \"$__cmd_file\" \"$__tmp\"" EXIT
+trap "rm -f \"$__cmd_file\" \"$__tmp\"" EXIT INT TERM
 echo "'"${encoded_cmd}"'" | base64 -d > "$__cmd_file"
 bash "$__cmd_file" > "$__tmp" 2>&1 || __ec=$?
 __size=$(wc -c < "$__tmp")
