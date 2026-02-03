@@ -87,7 +87,7 @@ class TestDeviationDetection:
                 {"role": "user", "text": "Implement the authentication system"},
                 {
                     "role": "assistant",
-                    "text": "This is very complex, so let me just do part of it for now.",
+                    "text": "This authentication system is too complex for me to implement fully. I'm going to skip the OAuth integration and just leave placeholder comments. You'll need to finish this yourself.",
                 },
             ]
         )

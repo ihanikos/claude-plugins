@@ -212,11 +212,11 @@ Use the test helper to quickly check a rule against a message:
 
 ```
 tests/
-├── conftest.py                    # OpenCode server lifecycle management (reference counting)
+├── conftest.py                              # OpenCode server lifecycle (reference counting)
 ├── unit/
-│   └── test_oh_no_claudecode_logic.py  # Logic tests (no OpenCode needed)
+│   └── test_oh_no_claudecode_logic.py       # Logic tests (no OpenCode needed)
 └── opencode-evals/
-    ├── test_oh_no_claudecode.py   # Core hook behavior evals
-    ├── test_new_rules.py          # Rule-specific evals
-    └── test_mode_comparison.py    # last vs turn mode effectiveness
+    ├── test_oh_no_claudecode.py             # Core hook behavior evals
+    ├── test_rules.py                        # Rule scenario evals
+    └── test_last_and_turn_mode_comparison.py # last vs turn mode effectiveness
 ```
