@@ -8,14 +8,13 @@ These tests mock the LLM judge and test the hook's decision logic:
 """
 
 import atexit
+import hashlib
 import json
 import os
 import subprocess
 import tempfile
 import uuid
 from pathlib import Path
-
-import pytest
 
 HOOK_SCRIPT = str(Path(__file__).parent.parent.parent / "scripts/oh-no-claudecode.py")
 
@@ -175,21 +174,51 @@ class TestBriefResponseBypass:
 class TestSafetyValve:
     """Safety valve should stop blocking after MAX_BLOCKS_PER_SESSION."""
 
-    @pytest.mark.skip(
-        reason="Requires BLOCK_COUNT_DIR env var support in hook for testability"
-    )
     def test_safety_valve_triggers_after_max_blocks(self, tmp_path):
-        """After 10 blocks, safety valve should allow through.
-
-        TODO: Add env var override for BLOCK_COUNT_DIR to make this testable.
-        The hook currently uses a module-level constant for the block count directory,
-        which cannot be overridden without refactoring to support dependency injection.
-        """
+        """After 10 blocks, safety valve should allow through."""
         session_id = f"test-valve-{uuid.uuid4()}"
-        sessions_dir = tmp_path / "sessions"
-        sessions_dir.mkdir()
-        count_file = sessions_dir / f"{session_id}.count"
+        # The hook uses a hash of session_id for the filename
+        hashed = hashlib.sha256(session_id.encode()).hexdigest()[:16]
+
+        # Create block count file showing 10 blocks
+        count_file = tmp_path / f"{hashed}.count"
         count_file.write_text("10")
+
+        transcript = create_transcript(
+            [
+                {"role": "user", "text": "Do something"},
+                {"role": "assistant", "text": "I will skip this and move on."},
+            ]
+        )
+
+        # Use empty config so no actual LLM queries are made
+        config = create_config([])
+
+        hook_input = json.dumps(
+            {
+                "session_id": session_id,
+                "transcript_path": str(transcript),
+                "hook_event_name": "Stop",
+            }
+        )
+
+        env = os.environ.copy()
+        env["OH_NO_CLAUDECODE_CONFIG"] = str(config)
+        env["OH_NO_CLAUDECODE_BLOCK_COUNT_DIR"] = str(tmp_path)
+
+        result = subprocess.run(
+            ["python3", HOOK_SCRIPT],
+            input=hook_input,
+            capture_output=True,
+            text=True,
+            timeout=30,
+            env=env,
+        )
+
+        assert result.returncode == 0
+        # Safety valve should trigger and output warning
+        assert "safety valve" in result.stderr.lower()
+        assert "systemMessage" in result.stdout
 
 
 class TestEmptyAndEdgeCases:
