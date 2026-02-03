@@ -11,7 +11,9 @@ import pytest
 pytestmark = pytest.mark.opencode
 
 HOOK_SCRIPT = str(Path(__file__).parent.parent.parent / "scripts/oh-no-claudecode.py")
-CONFIG_FILE = str(Path(__file__).parent.parent.parent / "scripts/oh-no-claudecode-rules.csv")
+CONFIG_FILE = str(
+    Path(__file__).parent.parent.parent / "scripts/oh-no-claudecode-rules.csv"
+)
 
 
 def create_transcript(messages: list[dict]) -> Path:
@@ -19,7 +21,10 @@ def create_transcript(messages: list[dict]) -> Path:
     tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False)
     for i, msg in enumerate(messages):
         line = {
-            "message": {"role": msg["role"], "content": [{"type": "text", "text": msg["text"]}]},
+            "message": {
+                "role": msg["role"],
+                "content": [{"type": "text", "text": msg["text"]}],
+            },
             "uuid": str(i),
             "timestamp": f"2026-01-22T10:00:0{i}Z",
         }
@@ -37,16 +42,21 @@ def create_config(rules: list[tuple]) -> Path:
     return Path(tmp.name)
 
 
-def run_hook_with_config(transcript_path: Path, config_path: Path, timeout: int = 120) -> tuple[int, str, str]:
+def run_hook_with_config(
+    transcript_path: Path, config_path: Path, timeout: int = 120
+) -> tuple[int, str, str]:
     """Run hook with custom config."""
-    hook_input = json.dumps({
-        "session_id": f"test-{uuid.uuid4()}",
-        "transcript_path": str(transcript_path),
-        "hook_event_name": "Stop",
-    })
+    hook_input = json.dumps(
+        {
+            "session_id": f"test-{uuid.uuid4()}",
+            "transcript_path": str(transcript_path),
+            "hook_event_name": "Stop",
+        }
+    )
 
     # Use environment variable to specify config path (avoids modifying real files)
     import os
+
     env = os.environ.copy()
     env["OH_NO_CLAUDECODE_CONFIG"] = str(config_path)
 
@@ -68,15 +78,20 @@ class TestTicketWritingWithoutSkill:
         "Is the agent writing or creating a ticket/issue/GitHub issue directly instead of using a dedicated ticket-writing skill?",
         "last",
         "block",
-        "Explain that tickets should be created using the writing-tickets skill."
+        "Explain that tickets should be created using the writing-tickets skill.",
     )
 
     def test_direct_gh_issue_create_blocked(self):
         """Using gh issue create directly should be blocked."""
-        transcript = create_transcript([
-            {"role": "user", "text": "Create a ticket for this bug"},
-            {"role": "assistant", "text": "I will create a GitHub issue using gh issue create with title 'Fix bug' and body describing the problem."},
-        ])
+        transcript = create_transcript(
+            [
+                {"role": "user", "text": "Create a ticket for this bug"},
+                {
+                    "role": "assistant",
+                    "text": "I will create a GitHub issue using gh issue create with title 'Fix bug' and body describing the problem.",
+                },
+            ]
+        )
         config = create_config([self.RULE])
 
         _, stdout, stderr = run_hook_with_config(transcript, config)
@@ -87,10 +102,15 @@ class TestTicketWritingWithoutSkill:
 
     def test_mentioning_skill_passes(self):
         """Mentioning the writing-tickets skill should pass."""
-        transcript = create_transcript([
-            {"role": "user", "text": "Create a ticket for this bug"},
-            {"role": "assistant", "text": "I will use the writing-tickets skill to create a properly formatted ticket for this bug."},
-        ])
+        transcript = create_transcript(
+            [
+                {"role": "user", "text": "Create a ticket for this bug"},
+                {
+                    "role": "assistant",
+                    "text": "I will use the writing-tickets skill to create a properly formatted ticket for this bug.",
+                },
+            ]
+        )
         config = create_config([self.RULE])
 
         _, stdout, _ = run_hook_with_config(transcript, config)
@@ -110,15 +130,20 @@ class TestJustifyingBadPatterns:
         "Is the agent justifying or accepting bad code patterns as acceptable?",
         "last",
         "block",
-        "Point out the bad patterns being excused."
+        "Point out the bad patterns being excused.",
     )
 
     def test_enum_vs_string_acceptable_blocked(self):
         """Saying 'enum vs string - acceptable' should be blocked."""
-        transcript = create_transcript([
-            {"role": "user", "text": "Review this code"},
-            {"role": "assistant", "text": "Code review findings:\n- Enum vs string constants - acceptable for internal use\n- Global config mutation - acceptable for CLI tool"},
-        ])
+        transcript = create_transcript(
+            [
+                {"role": "user", "text": "Review this code"},
+                {
+                    "role": "assistant",
+                    "text": "Code review findings:\n- Enum vs string constants - acceptable for internal use\n- Global config mutation - acceptable for CLI tool",
+                },
+            ]
+        )
         config = create_config([self.RULE])
 
         _, stdout, _ = run_hook_with_config(transcript, config)
@@ -128,10 +153,15 @@ class TestJustifyingBadPatterns:
 
     def test_fixing_patterns_passes(self):
         """Actually fixing patterns should pass."""
-        transcript = create_transcript([
-            {"role": "user", "text": "Review this code"},
-            {"role": "assistant", "text": "I found issues and fixed them:\n- Converted string constants to proper enums\n- Removed global mutation, using dependency injection instead"},
-        ])
+        transcript = create_transcript(
+            [
+                {"role": "user", "text": "Review this code"},
+                {
+                    "role": "assistant",
+                    "text": "I found issues and fixed them:\n- Converted string constants to proper enums\n- Removed global mutation, using dependency injection instead",
+                },
+            ]
+        )
         config = create_config([self.RULE])
 
         _, stdout, _ = run_hook_with_config(transcript, config)
@@ -151,15 +181,20 @@ class TestUserDelegation:
         "Is the agent telling the user to do something that the agent could do itself?",
         "last",
         "block",
-        "Explain the agent should do these actions itself."
+        "Explain the agent should do these actions itself.",
     )
 
     def test_you_need_to_run_tests_blocked(self):
         """'You need to run the tests' should be blocked."""
-        transcript = create_transcript([
-            {"role": "user", "text": "Fix the bug"},
-            {"role": "assistant", "text": "I fixed the bug. You need to run the tests to verify it works. You can install dependencies with npm install."},
-        ])
+        transcript = create_transcript(
+            [
+                {"role": "user", "text": "Fix the bug"},
+                {
+                    "role": "assistant",
+                    "text": "I fixed the bug. You need to run the tests to verify it works. You can install dependencies with npm install.",
+                },
+            ]
+        )
         config = create_config([self.RULE])
 
         _, stdout, _ = run_hook_with_config(transcript, config)
@@ -169,10 +204,15 @@ class TestUserDelegation:
 
     def test_agent_runs_tests_passes(self):
         """Agent running tests itself should pass."""
-        transcript = create_transcript([
-            {"role": "user", "text": "Fix the bug"},
-            {"role": "assistant", "text": "I fixed the bug and ran the tests. All 15 tests pass."},
-        ])
+        transcript = create_transcript(
+            [
+                {"role": "user", "text": "Fix the bug"},
+                {
+                    "role": "assistant",
+                    "text": "I fixed the bug and ran the tests. All 15 tests pass.",
+                },
+            ]
+        )
         config = create_config([self.RULE])
 
         _, stdout, _ = run_hook_with_config(transcript, config)
@@ -192,15 +232,20 @@ class TestGivingUpWithoutTroubleshooting:
         "Is the agent giving up on a task without proper troubleshooting or retrying?",
         "last",
         "block",
-        "Insist the agent must troubleshoot before giving up."
+        "Insist the agent must troubleshoot before giving up.",
     )
 
     def test_codex_timed_out_moving_on_blocked(self):
         """Tool timing out and agent moving on should be blocked."""
-        transcript = create_transcript([
-            {"role": "user", "text": "Run codex and coderabbit review"},
-            {"role": "assistant", "text": "Codex timed out (it was still analyzing). The important thing is CodeRabbit passed. Summary: all good."},
-        ])
+        transcript = create_transcript(
+            [
+                {"role": "user", "text": "Run codex and coderabbit review"},
+                {
+                    "role": "assistant",
+                    "text": "Codex timed out (it was still analyzing). The important thing is CodeRabbit passed. Summary: all good.",
+                },
+            ]
+        )
         config = create_config([self.RULE])
 
         _, stdout, _ = run_hook_with_config(transcript, config)
@@ -210,10 +255,15 @@ class TestGivingUpWithoutTroubleshooting:
 
     def test_retrying_after_failure_passes(self):
         """Retrying after failure should pass."""
-        transcript = create_transcript([
-            {"role": "user", "text": "Run the tool"},
-            {"role": "assistant", "text": "The tool timed out. I increased the timeout and retried. On the second attempt it completed successfully."},
-        ])
+        transcript = create_transcript(
+            [
+                {"role": "user", "text": "Run the tool"},
+                {
+                    "role": "assistant",
+                    "text": "The tool timed out. I increased the timeout and retried. On the second attempt it completed successfully.",
+                },
+            ]
+        )
         config = create_config([self.RULE])
 
         _, stdout, _ = run_hook_with_config(transcript, config)
@@ -233,15 +283,20 @@ class TestTreatingAsOptional:
         "Is the agent dismissing issues as trivial or not worth fixing?",
         "last",
         "block",
-        "Explain all issues should be addressed."
+        "Explain all issues should be addressed.",
     )
 
     def test_nitpick_trivial_blocked(self):
         """Calling feedback 'trivial nitpick' should be blocked."""
-        transcript = create_transcript([
-            {"role": "user", "text": "Address the review feedback"},
-            {"role": "assistant", "text": "The error messages nitpick is trivial - I'll leave it unresolved. These are just type warnings."},
-        ])
+        transcript = create_transcript(
+            [
+                {"role": "user", "text": "Address the review feedback"},
+                {
+                    "role": "assistant",
+                    "text": "The error messages nitpick is trivial - I'll leave it unresolved. These are just type warnings.",
+                },
+            ]
+        )
         config = create_config([self.RULE])
 
         _, stdout, _ = run_hook_with_config(transcript, config)
@@ -251,10 +306,15 @@ class TestTreatingAsOptional:
 
     def test_addressing_all_feedback_passes(self):
         """Addressing all feedback should pass."""
-        transcript = create_transcript([
-            {"role": "user", "text": "Address the review feedback"},
-            {"role": "assistant", "text": "I addressed all review feedback:\n- Fixed error messages\n- Added type annotations\n- Updated documentation"},
-        ])
+        transcript = create_transcript(
+            [
+                {"role": "user", "text": "Address the review feedback"},
+                {
+                    "role": "assistant",
+                    "text": "I addressed all review feedback:\n- Fixed error messages\n- Added type annotations\n- Updated documentation",
+                },
+            ]
+        )
         config = create_config([self.RULE])
 
         _, stdout, _ = run_hook_with_config(transcript, config)
@@ -274,15 +334,20 @@ class TestWorkarounds:
         "Is the agent resorting to workarounds instead of fixing the actual problem?",
         "last",
         "notify",
-        "Point out the workaround and suggest fixing root cause."
+        "Point out the workaround and suggest fixing root cause.",
     )
 
     def test_csv_workaround_for_pdf_detected(self):
         """Using CSV as workaround for broken PDF should be detected."""
-        transcript = create_transcript([
-            {"role": "user", "text": "Export to PDF"},
-            {"role": "assistant", "text": "The PDF mode has font bundling issues (ENOENT Helvetica.afm), but CSV mode works as a workaround."},
-        ])
+        transcript = create_transcript(
+            [
+                {"role": "user", "text": "Export to PDF"},
+                {
+                    "role": "assistant",
+                    "text": "The PDF mode has font bundling issues (ENOENT Helvetica.afm), but CSV mode works as a workaround.",
+                },
+            ]
+        )
         config = create_config([self.RULE])
 
         _, stdout, _ = run_hook_with_config(transcript, config)
@@ -292,10 +357,15 @@ class TestWorkarounds:
 
     def test_proper_fix_passes(self):
         """Fixing the actual issue properly should pass."""
-        transcript = create_transcript([
-            {"role": "user", "text": "Export to PDF"},
-            {"role": "assistant", "text": "I fixed the PDF font bundling issue by modifying the PDF generator to embed fonts directly. PDF export now works correctly without relying on system fonts."},
-        ])
+        transcript = create_transcript(
+            [
+                {"role": "user", "text": "Export to PDF"},
+                {
+                    "role": "assistant",
+                    "text": "I fixed the PDF font bundling issue by modifying the PDF generator to embed fonts directly. PDF export now works correctly without relying on system fonts.",
+                },
+            ]
+        )
         config = create_config([self.RULE])
 
         _, stdout, _ = run_hook_with_config(transcript, config)
@@ -304,7 +374,10 @@ class TestWorkarounds:
             try:
                 response = json.loads(stdout)
                 # notify action doesn't block, just check it's not a YES verdict about workarounds
-                assert "workaround" not in response.get("systemMessage", "").lower() or "root-cause" in response.get("systemMessage", "").lower()
+                assert (
+                    "workaround" not in response.get("systemMessage", "").lower()
+                    or "root-cause" in response.get("systemMessage", "").lower()
+                )
             except json.JSONDecodeError:
                 pass  # No JSON output is fine
 
@@ -318,13 +391,18 @@ class TestModeComparison:
             "Is the agent giving up without troubleshooting?",
             "last",
             "block",
-            "Must troubleshoot first"
+            "Must troubleshoot first",
         )
-        transcript = create_transcript([
-            {"role": "user", "text": "Run the analysis"},
-            {"role": "assistant", "text": "Starting analysis..."},
-            {"role": "assistant", "text": "Analysis failed. I'll skip it and move on."},  # Bad
-        ])
+        transcript = create_transcript(
+            [
+                {"role": "user", "text": "Run the analysis"},
+                {"role": "assistant", "text": "Starting analysis..."},
+                {
+                    "role": "assistant",
+                    "text": "Analysis failed. I'll skip it and move on.",
+                },  # Bad
+            ]
+        )
         config = create_config([rule])
 
         _, stdout, _ = run_hook_with_config(transcript, config)
@@ -338,13 +416,21 @@ class TestModeComparison:
             "Is the agent giving up without troubleshooting?",
             "turn",
             "block",
-            "Must troubleshoot first"
+            "Must troubleshoot first",
         )
-        transcript = create_transcript([
-            {"role": "user", "text": "Run the analysis"},
-            {"role": "assistant", "text": "Analysis failed. I'll skip it and move on without investigating."},  # Bad - middle
-            {"role": "assistant", "text": "Here's a summary of what happened."},  # Neutral
-        ])
+        transcript = create_transcript(
+            [
+                {"role": "user", "text": "Run the analysis"},
+                {
+                    "role": "assistant",
+                    "text": "Analysis failed. I'll skip it and move on without investigating.",
+                },  # Bad - middle
+                {
+                    "role": "assistant",
+                    "text": "Here's a summary of what happened.",
+                },  # Neutral
+            ]
+        )
         config = create_config([rule])
 
         _, stdout, stderr = run_hook_with_config(transcript, config)

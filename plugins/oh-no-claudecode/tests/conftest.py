@@ -52,7 +52,15 @@ def is_server_available() -> bool:
         return False
     try:
         result = subprocess.run(
-            [opencode_bin, "run", "--attach", f"http://127.0.0.1:{OPENCODE_SERVER_PORT}", "-m", "opencode/gpt-5-nano", "respond with only: OK"],
+            [
+                opencode_bin,
+                "run",
+                "--attach",
+                f"http://127.0.0.1:{OPENCODE_SERVER_PORT}",
+                "-m",
+                "opencode/gpt-5-nano",
+                "respond with only: OK",
+            ],
             capture_output=True,
             text=True,
             timeout=10,
@@ -172,6 +180,7 @@ def opencode_release() -> None:
 
 
 # Pytest hooks and fixtures
+
 
 def pytest_addoption(parser):
     parser.addoption(
