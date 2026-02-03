@@ -30,7 +30,19 @@ This plugin intercepts Claude's responses at the Stop event and:
 
 ### Rules File
 
-Edit `scripts/oh-no-claudecode-rules.csv` to define monitoring rules:
+The rules file is loaded from (in priority order):
+1. `$OH_NO_CLAUDECODE_CONFIG` environment variable (if set)
+2. `~/.config/oh-no-claudecode/rules.csv` (user config, recommended)
+3. Bundled example file (fallback for first-time users)
+
+**To customize**, copy the example to your user config:
+
+```bash
+mkdir -p ~/.config/oh-no-claudecode
+cp scripts/oh-no-claudecode-rules.example.csv ~/.config/oh-no-claudecode/rules.csv
+```
+
+Then edit `~/.config/oh-no-claudecode/rules.csv`:
 
 ```csv
 # Format: "criteria","mode","action","response_prompt"
@@ -65,7 +77,7 @@ Edit `scripts/oh-no-claudecode-rules.csv` to define monitoring rules:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `OH_NO_CLAUDECODE_CONFIG` | `scripts/oh-no-claudecode-rules.csv` | Path to rules file |
+| `OH_NO_CLAUDECODE_CONFIG` | `~/.config/oh-no-claudecode/rules.csv` | Path to rules file |
 | `OH_NO_CLAUDECODE_MIN_LENGTH` | `50` | Skip 'last' mode rules for messages shorter than this |
 
 ## How It Works
