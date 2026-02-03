@@ -25,6 +25,7 @@ from pathlib import Path
 #   OH_NO_CLAUDECODE_CONFIG: path to rules CSV (default: oh-no-claudecode-rules.csv next to this file)
 #   GUARDRAILS_CONFIG: legacy alias for OH_NO_CLAUDECODE_CONFIG
 #   OH_NO_CLAUDECODE_MIN_LENGTH: skip 'last' rules for messages shorter than this (default: 50)
+#   OH_NO_CLAUDECODE_BLOCK_COUNT_DIR: directory for session block counts (default: $XDG_STATE_HOME/oh-no-claudecode/sessions)
 #   XDG_STATE_HOME: base dir for logs and session state (default: ~/.local/state)
 #   CLAUDE_PROJECT_DIR: used by find_claudemd() to locate CLAUDE.md
 HOOK_DIR = Path(__file__).parent
@@ -34,10 +35,13 @@ CONFIG_FILE = Path(
         os.environ.get("GUARDRAILS_CONFIG", HOOK_DIR / "oh-no-claudecode-rules.csv"),
     )
 )
-BLOCK_COUNT_DIR = (
-    Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local" / "state"))
-    / "oh-no-claudecode"
-    / "sessions"
+BLOCK_COUNT_DIR = Path(
+    os.environ.get(
+        "OH_NO_CLAUDECODE_BLOCK_COUNT_DIR",
+        Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local" / "state"))
+        / "oh-no-claudecode"
+        / "sessions",
+    )
 )
 MAX_BLOCKS_PER_SESSION = 10
 
