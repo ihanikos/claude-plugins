@@ -1,0 +1,12 @@
+# Agent Guardrails Rules
+# mode: "last" (only last message), "turn" (all messages in current turn), "claudemd" (check against CLAUDE.md rules)
+
+"Is the agent likely to start deviating from its instructions?",turn,block,"Warn that the instructions must be followed precisely or the agent must stop, and explain why it seems like it might be doing something wrong. Respond in first person"
+"Is the agent writing or creating a ticket/issue/GitHub issue directly (e.g., using gh issue create) instead of using a dedicated ticket-writing skill?",turn,block,"Explain that tickets should be created using the writing-tickets skill, not directly."
+"Is the agent justifying, excusing, or accepting bad code patterns, technical debt, or poor practices as acceptable?",turn,block,"Point out the specific bad patterns being excused and explain why they should be fixed properly."
+"Is the agent telling the user to do something that the agent could and should do itself?",turn,block,"Explain that the agent should perform these actions itself rather than delegating to the user."
+"Is the agent giving up on a task, tool, or operation without proper troubleshooting, retrying, or investigation?",turn,block,"Insist that the agent must troubleshoot, retry, or investigate before giving up."
+"Is the agent dismissing issues as trivial, optional, or not worth fixing?",turn,block,"Explain that all issues should be addressed properly."
+"Is the agent resorting to workarounds or fallbacks instead of fixing the actual underlying problem?",last,notify,"Point out the workaround being used and suggest the agent should fix the root cause instead."
+"Based on the agent's message, what would the user most likely want to do next?",last,suggest,"Provide a brief, actionable suggestion starting with 'Suggested next action:'"
+"Is the agent violating any of the project rules defined in CLAUDE.md? Check for response style violations, workflow violations, or ignoring specific instructions.",claudemd,block,"Explain which CLAUDE.md rule is being violated and what the agent should do instead."
