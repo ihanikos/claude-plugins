@@ -186,20 +186,19 @@ pip install pytest
 pytest tests/unit/ -v
 ```
 
-### Running Integration Tests
+### Running OpenCode Evals
 
-Integration tests require a running OpenCode server:
+OpenCode evals test the actual LLM judgment against specific scenarios. The test fixture automatically manages the OpenCode server:
 
 ```bash
-# Start OpenCode server first
-opencode serve --port 4096 &
-
-# Run integration tests
-pytest tests/integration/ -v
+# Run opencode-evals (server starts automatically if needed)
+pytest tests/opencode-evals/ -v
 
 # Or skip if OpenCode is unavailable
-pytest tests/integration/ -v --skip-opencode
+pytest tests/opencode-evals/ -v --skip-opencode
 ```
+
+The fixture uses reference counting, so it won't kill an OpenCode server started by another session.
 
 ### Manual Testing
 
@@ -213,11 +212,11 @@ Use the test helper to quickly check a rule against a message:
 
 ```
 tests/
-├── conftest.py                    # OpenCode server lifecycle management
+├── conftest.py                    # OpenCode server lifecycle management (reference counting)
 ├── unit/
 │   └── test_oh_no_claudecode_logic.py  # Logic tests (no OpenCode needed)
-└── integration/
-    ├── test_oh_no_claudecode.py   # Core hook tests
-    ├── test_new_rules.py          # Rule-specific tests
+└── opencode-evals/
+    ├── test_oh_no_claudecode.py   # Core hook behavior evals
+    ├── test_new_rules.py          # Rule-specific evals
     └── test_mode_comparison.py    # last vs turn mode effectiveness
 ```
