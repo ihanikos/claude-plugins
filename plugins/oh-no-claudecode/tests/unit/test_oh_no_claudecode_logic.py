@@ -287,6 +287,144 @@ class TestEmptyAndEdgeCases:
         assert result.returncode == 0
 
 
+class TestConfigResolution:
+    """Test config file resolution logic."""
+
+    def test_env_var_override_takes_priority(self, tmp_path):
+        """OH_NO_CLAUDECODE_CONFIG env var should override everything."""
+        # Use empty config to avoid OpenCode calls - we just verify the path is used
+        custom_config = tmp_path / "custom-rules.csv"
+        custom_config.write_text("# Empty custom config\n")
+
+        transcript = create_transcript(
+            [
+                {"role": "user", "text": "Test"},
+                {"role": "assistant", "text": "A" * 300},
+            ]
+        )
+
+        hook_input = json.dumps(
+            {
+                "session_id": f"test-{uuid.uuid4()}",
+                "transcript_path": str(transcript),
+                "hook_event_name": "Stop",
+            }
+        )
+
+        env = os.environ.copy()
+        env["OH_NO_CLAUDECODE_CONFIG"] = str(custom_config)
+
+        result = subprocess.run(
+            ["python3", HOOK_SCRIPT],
+            input=hook_input,
+            capture_output=True,
+            text=True,
+            timeout=30,
+            env=env,
+        )
+
+        assert result.returncode == 0
+        assert "0 rules" in result.stderr
+        assert str(custom_config) in result.stderr
+
+    def test_user_config_used_when_exists(self, tmp_path):
+        """~/.config/oh-no-claudecode/rules.csv should be used when it exists."""
+        # Use empty config to avoid OpenCode calls - we just verify it loads from right path
+        user_config_dir = tmp_path / "config" / "oh-no-claudecode"
+        user_config_dir.mkdir(parents=True)
+        user_config = user_config_dir / "rules.csv"
+        user_config.write_text("# Empty user config\n")
+
+        transcript = create_transcript(
+            [
+                {"role": "user", "text": "Test"},
+                {"role": "assistant", "text": "A" * 300},
+            ]
+        )
+
+        hook_input = json.dumps(
+            {
+                "session_id": f"test-{uuid.uuid4()}",
+                "transcript_path": str(transcript),
+                "hook_event_name": "Stop",
+            }
+        )
+
+        env = os.environ.copy()
+        env["XDG_CONFIG_HOME"] = str(tmp_path / "config")
+        # Remove any explicit config override
+        env.pop("OH_NO_CLAUDECODE_CONFIG", None)
+        env.pop("GUARDRAILS_CONFIG", None)
+
+        result = subprocess.run(
+            ["python3", HOOK_SCRIPT],
+            input=hook_input,
+            capture_output=True,
+            text=True,
+            timeout=30,
+            env=env,
+        )
+
+        assert result.returncode == 0
+        # Should load from user config (which is empty)
+        assert "0 rules" in result.stderr
+        # And should mention the path
+        assert str(user_config) in result.stderr or "rules.csv" in result.stderr
+
+    def test_example_config_used_as_fallback(self, tmp_path):
+        """Bundled example config should be used when no user config exists."""
+        # Create an empty example config to replace the real one (avoids OpenCode calls)
+        example_config = tmp_path / "example-rules.csv"
+        example_config.write_text("# Empty example\n")
+
+        transcript = create_transcript(
+            [
+                {"role": "user", "text": "Test"},
+                {"role": "assistant", "text": "A" * 300},
+            ]
+        )
+
+        hook_input = json.dumps(
+            {
+                "session_id": f"test-{uuid.uuid4()}",
+                "transcript_path": str(transcript),
+                "hook_event_name": "Stop",
+            }
+        )
+
+        # Create a modified hook that points to our temp example
+        import shutil
+
+        temp_hook_dir = tmp_path / "scripts"
+        temp_hook_dir.mkdir()
+        temp_hook = temp_hook_dir / "oh-no-claudecode.py"
+        shutil.copy(HOOK_SCRIPT, temp_hook)
+
+        # Copy example config to temp dir
+        temp_example = temp_hook_dir / "oh-no-claudecode-rules.example.csv"
+        temp_example.write_text("# Temp example config\n")
+
+        env = os.environ.copy()
+        # Point to empty config dir so no user config exists
+        env["XDG_CONFIG_HOME"] = str(tmp_path / "empty-config")
+        env.pop("OH_NO_CLAUDECODE_CONFIG", None)
+        env.pop("GUARDRAILS_CONFIG", None)
+
+        result = subprocess.run(
+            ["python3", str(temp_hook)],
+            input=hook_input,
+            capture_output=True,
+            text=True,
+            timeout=30,
+            env=env,
+        )
+
+        assert result.returncode == 0
+        # Should load from example config path
+        assert "example" in result.stderr.lower()
+        assert "0 rules" in result.stderr
+
+
 class TestRuleLoading:
     """Test rule parsing from CSV config."""
 

@@ -22,19 +22,37 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 # Configuration — all env var overrides documented here:
-#   OH_NO_CLAUDECODE_CONFIG: path to rules CSV (default: oh-no-claudecode-rules.csv next to this file)
+#   OH_NO_CLAUDECODE_CONFIG: path to rules CSV (default: ~/.config/oh-no-claudecode/rules.csv)
 #   GUARDRAILS_CONFIG: legacy alias for OH_NO_CLAUDECODE_CONFIG
 #   OH_NO_CLAUDECODE_MIN_LENGTH: skip 'last' rules for messages shorter than this (default: 50)
 #   OH_NO_CLAUDECODE_BLOCK_COUNT_DIR: directory for session block counts (default: $XDG_STATE_HOME/oh-no-claudecode/sessions)
 #   XDG_STATE_HOME: base dir for logs and session state (default: ~/.local/state)
+#   XDG_CONFIG_HOME: base dir for config files (default: ~/.config)
 #   CLAUDE_PROJECT_DIR: used by find_claudemd() to locate CLAUDE.md
 HOOK_DIR = Path(__file__).parent
-CONFIG_FILE = Path(
-    os.environ.get(
-        "OH_NO_CLAUDECODE_CONFIG",
-        os.environ.get("GUARDRAILS_CONFIG", HOOK_DIR / "oh-no-claudecode-rules.csv"),
+XDG_CONFIG_HOME = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config"))
+USER_CONFIG_FILE = XDG_CONFIG_HOME / "oh-no-claudecode" / "rules.csv"
+EXAMPLE_CONFIG_FILE = HOOK_DIR / "oh-no-claudecode-rules.example.csv"
+
+
+def get_config_file() -> Path:
+    """Get the config file path, preferring user config over bundled example."""
+    # 1. Explicit env var override
+    env_config = os.environ.get(
+        "OH_NO_CLAUDECODE_CONFIG", os.environ.get("GUARDRAILS_CONFIG")
     )
-)
+    if env_config:
+        return Path(env_config)
+
+    # 2. User config in ~/.config/oh-no-claudecode/rules.csv
+    if USER_CONFIG_FILE.exists():
+        return USER_CONFIG_FILE
+
+    # 3. Fall back to bundled example
+    return EXAMPLE_CONFIG_FILE
+
+
+CONFIG_FILE = get_config_file()
 BLOCK_COUNT_DIR = Path(
     os.environ.get(
         "OH_NO_CLAUDECODE_BLOCK_COUNT_DIR",
@@ -350,7 +368,7 @@ def main():
 
     # Load rules and prepare queries
     rules = load_rules()
-    log(f"Loaded {len(rules)} rules from config")
+    log(f"Loaded {len(rules)} rules from {CONFIG_FILE}")
 
     # Pre-compute content for each mode (avoid repeated parsing)
     turn_content = get_turn_messages(transcript)
