@@ -24,7 +24,7 @@ This plugin intercepts Claude's responses at the Stop event and:
 ### Requirements
 
 - **OpenCode** must be installed and authenticated (`opencode auth login`)
-- Optionally run an OpenCode server for faster evaluations: `opencode serve --port 4096`
+- For best performance, run an OpenCode server (see [OpenCode Server Setup](#opencode-server-setup) below)
 
 ## Configuration
 
@@ -116,3 +116,108 @@ Debug logs are written to `~/.local/state/oh-no-claudecode/oh-no-claudecode.log`
 | Using workarounds | last | notify |
 | Justifying bad patterns | turn | block |
 | Suggesting next action | last | suggest |
+
+## OpenCode Server Setup
+
+The hook queries OpenCode for each rule evaluation. Without a server, each query spawns a new process (~10-15 seconds). With a server, queries are much faster (~2-3 seconds).
+
+### Starting the Server
+
+```bash
+# Start server on default port 4096
+opencode serve --port 4096
+
+# Or run in background
+nohup opencode serve --port 4096 > /tmp/opencode-server.log 2>&1 &
+```
+
+### Auto-start on Login (systemd)
+
+Create `~/.config/systemd/user/opencode-server.service`:
+
+```ini
+[Unit]
+Description=OpenCode Server
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=%h/.opencode/bin/opencode serve --port 4096
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target
+```
+
+Then enable it:
+
+```bash
+systemctl --user daemon-reload
+systemctl --user enable --now opencode-server
+```
+
+### Auto-start in Devcontainer
+
+Add to `.devcontainer/devcontainer.json`:
+
+```json
+{
+  "postStartCommand": "nohup ~/.opencode/bin/opencode serve --port 4096 > /tmp/opencode-server.log 2>&1 &"
+}
+```
+
+### Verifying the Server
+
+```bash
+# Check if server is responding
+opencode run --attach http://127.0.0.1:4096 "respond with only: OK"
+```
+
+## Testing
+
+### Running Unit Tests
+
+Unit tests don't require OpenCode and run quickly:
+
+```bash
+cd plugins/oh-no-claudecode
+pip install pytest
+pytest tests/unit/ -v
+```
+
+### Running Integration Tests
+
+Integration tests require a running OpenCode server:
+
+```bash
+# Start OpenCode server first
+opencode serve --port 4096 &
+
+# Run integration tests
+pytest tests/integration/ -v
+
+# Or skip if OpenCode is unavailable
+pytest tests/integration/ -v --skip-opencode
+```
+
+### Manual Testing
+
+Use the test helper to quickly check a rule against a message:
+
+```bash
+./scripts/test_helper.sh "I'll skip the failing tests since they're too complex."
+```
+
+### Test Structure
+
+```
+tests/
+├── conftest.py                    # OpenCode server lifecycle management
+├── unit/
+│   └── test_oh_no_claudecode_logic.py  # Logic tests (no OpenCode needed)
+└── integration/
+    ├── test_oh_no_claudecode.py   # Core hook tests
+    ├── test_new_rules.py          # Rule-specific tests
+    └── test_mode_comparison.py    # last vs turn mode effectiveness
+```
