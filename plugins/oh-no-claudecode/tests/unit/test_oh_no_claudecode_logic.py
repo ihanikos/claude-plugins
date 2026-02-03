@@ -39,7 +39,10 @@ def create_transcript(messages: list[dict]) -> Path:
     tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False)
     for i, msg in enumerate(messages):
         line = {
-            "message": {"role": msg["role"], "content": [{"type": "text", "text": msg["text"]}]},
+            "message": {
+                "role": msg["role"],
+                "content": [{"type": "text", "text": msg["text"]}],
+            },
             "uuid": str(i),
             "timestamp": f"2026-01-29T10:00:{i:02d}Z",
         }
@@ -61,13 +64,20 @@ def create_config(rules: list[tuple]) -> Path:
     return path
 
 
-def run_hook(transcript_path: Path, config_path: Path | None = None, env_extra: dict | None = None, timeout: int = 30) -> tuple[int, str, str]:
+def run_hook(
+    transcript_path: Path,
+    config_path: Path | None = None,
+    env_extra: dict | None = None,
+    timeout: int = 30,
+) -> tuple[int, str, str]:
     """Run the hook with optional config override. Short timeout for unit tests."""
-    hook_input = json.dumps({
-        "session_id": f"test-{uuid.uuid4()}",
-        "transcript_path": str(transcript_path),
-        "hook_event_name": "Stop",
-    })
+    hook_input = json.dumps(
+        {
+            "session_id": f"test-{uuid.uuid4()}",
+            "transcript_path": str(transcript_path),
+            "hook_event_name": "Stop",
+        }
+    )
 
     env = os.environ.copy()
     if config_path:
@@ -96,13 +106,17 @@ class TestBriefResponseBypass:
 
     def test_short_done_message_skips_last_rules(self):
         """'Done.' should skip 'last' mode rules (< 50 chars by default)."""
-        transcript = create_transcript([
-            {"role": "user", "text": "Fix the bug"},
-            {"role": "assistant", "text": "Done."},
-        ])
-        config = create_config([
-            ("Is the agent deviating?", "last", "block", "Explain"),
-        ])
+        transcript = create_transcript(
+            [
+                {"role": "user", "text": "Fix the bug"},
+                {"role": "assistant", "text": "Done."},
+            ]
+        )
+        config = create_config(
+            [
+                ("Is the agent deviating?", "last", "block", "Explain"),
+            ]
+        )
 
         exit_code, stdout, stderr = run_hook(transcript, config)
         assert exit_code == 0
@@ -112,10 +126,12 @@ class TestBriefResponseBypass:
 
     def test_short_fixed_message_skipped(self):
         """'Fixed the typo in line 42.' should be skipped."""
-        transcript = create_transcript([
-            {"role": "user", "text": "Fix the typo"},
-            {"role": "assistant", "text": "Fixed the typo in line 42."},
-        ])
+        transcript = create_transcript(
+            [
+                {"role": "user", "text": "Fix the typo"},
+                {"role": "assistant", "text": "Fixed the typo in line 42."},
+            ]
+        )
 
         exit_code, stdout, stderr = run_hook(transcript)
         assert exit_code == 0
@@ -123,27 +139,33 @@ class TestBriefResponseBypass:
 
     def test_custom_min_length_via_env(self):
         """OH_NO_CLAUDECODE_MIN_LENGTH env var should override default."""
-        transcript = create_transcript([
-            {"role": "user", "text": "Do it"},
-            {"role": "assistant", "text": "A" * 40},  # 40 chars, below default 50
-        ])
+        transcript = create_transcript(
+            [
+                {"role": "user", "text": "Do it"},
+                {"role": "assistant", "text": "A" * 40},  # 40 chars, below default 50
+            ]
+        )
 
         # With default (50), 40 chars should be brief
         exit_code, stdout, stderr = run_hook(transcript)
         assert "brief response" in stderr.lower()
 
         # With min length 30, 40 chars should NOT be brief
-        exit_code2, stdout2, stderr2 = run_hook(transcript, env_extra={"OH_NO_CLAUDECODE_MIN_LENGTH": "30"})
+        exit_code2, stdout2, stderr2 = run_hook(
+            transcript, env_extra={"OH_NO_CLAUDECODE_MIN_LENGTH": "30"}
+        )
         assert "brief response" not in stderr2.lower()
 
     def test_long_message_not_skipped(self):
         """A 500-char message should NOT be skipped."""
         long_text = "I completed the refactoring of the authentication module. " * 10
         assert len(long_text) > 200
-        transcript = create_transcript([
-            {"role": "user", "text": "Refactor auth"},
-            {"role": "assistant", "text": long_text},
-        ])
+        transcript = create_transcript(
+            [
+                {"role": "user", "text": "Refactor auth"},
+                {"role": "assistant", "text": long_text},
+            ]
+        )
 
         exit_code, stdout, stderr = run_hook(transcript)
         assert exit_code == 0
@@ -153,7 +175,9 @@ class TestBriefResponseBypass:
 class TestSafetyValve:
     """Safety valve should stop blocking after MAX_BLOCKS_PER_SESSION."""
 
-    @pytest.mark.skip(reason="Requires BLOCK_COUNT_DIR env var support in hook for testability")
+    @pytest.mark.skip(
+        reason="Requires BLOCK_COUNT_DIR env var support in hook for testability"
+    )
     def test_safety_valve_triggers_after_max_blocks(self, tmp_path):
         """After 10 blocks, safety valve should allow through.
 
@@ -179,9 +203,11 @@ class TestEmptyAndEdgeCases:
 
     def test_user_only_transcript(self):
         """Transcript with only user messages should exit cleanly."""
-        transcript = create_transcript([
-            {"role": "user", "text": "Hello"},
-        ])
+        transcript = create_transcript(
+            [
+                {"role": "user", "text": "Hello"},
+            ]
+        )
         exit_code, stdout, stderr = run_hook(transcript)
         assert exit_code == 0
 
@@ -198,10 +224,12 @@ class TestEmptyAndEdgeCases:
 
     def test_missing_transcript_path(self):
         """Missing transcript path should exit cleanly."""
-        hook_input = json.dumps({
-            "session_id": "test",
-            "hook_event_name": "Stop",
-        })
+        hook_input = json.dumps(
+            {
+                "session_id": "test",
+                "hook_event_name": "Stop",
+            }
+        )
         result = subprocess.run(
             ["python3", HOOK_SCRIPT],
             input=hook_input,
@@ -213,11 +241,13 @@ class TestEmptyAndEdgeCases:
 
     def test_nonexistent_transcript(self):
         """Nonexistent transcript should exit cleanly."""
-        hook_input = json.dumps({
-            "session_id": "test",
-            "transcript_path": "/nonexistent.jsonl",
-            "hook_event_name": "Stop",
-        })
+        hook_input = json.dumps(
+            {
+                "session_id": "test",
+                "transcript_path": "/nonexistent.jsonl",
+                "hook_event_name": "Stop",
+            }
+        )
         result = subprocess.run(
             ["python3", HOOK_SCRIPT],
             input=hook_input,
@@ -233,10 +263,12 @@ class TestRuleLoading:
 
     def test_empty_config(self):
         """Empty config should result in no queries."""
-        transcript = create_transcript([
-            {"role": "user", "text": "Do something"},
-            {"role": "assistant", "text": "A" * 300},
-        ])
+        transcript = create_transcript(
+            [
+                {"role": "user", "text": "Do something"},
+                {"role": "assistant", "text": "A" * 300},
+            ]
+        )
         config = create_config([])
 
         exit_code, stdout, stderr = run_hook(transcript, config)
@@ -248,10 +280,12 @@ class TestRuleLoading:
         config_file = tmp_path / "comments-only.csv"
         config_file.write_text("# This is a comment\n\n# Another comment\n")
 
-        transcript = create_transcript([
-            {"role": "user", "text": "Do something"},
-            {"role": "assistant", "text": "A" * 300},
-        ])
+        transcript = create_transcript(
+            [
+                {"role": "user", "text": "Do something"},
+                {"role": "assistant", "text": "A" * 300},
+            ]
+        )
 
         exit_code, stdout, stderr = run_hook(transcript, config_file)
         assert exit_code == 0

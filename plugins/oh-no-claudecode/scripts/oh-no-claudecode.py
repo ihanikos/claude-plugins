@@ -28,14 +28,25 @@ from pathlib import Path
 #   XDG_STATE_HOME: base dir for logs and session state (default: ~/.local/state)
 #   CLAUDE_PROJECT_DIR: used by find_claudemd() to locate CLAUDE.md
 HOOK_DIR = Path(__file__).parent
-CONFIG_FILE = Path(os.environ.get("OH_NO_CLAUDECODE_CONFIG", os.environ.get("GUARDRAILS_CONFIG", HOOK_DIR / "oh-no-claudecode-rules.csv")))
-BLOCK_COUNT_DIR = Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local" / "state")) / "oh-no-claudecode" / "sessions"
+CONFIG_FILE = Path(
+    os.environ.get(
+        "OH_NO_CLAUDECODE_CONFIG",
+        os.environ.get("GUARDRAILS_CONFIG", HOOK_DIR / "oh-no-claudecode-rules.csv"),
+    )
+)
+BLOCK_COUNT_DIR = (
+    Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local" / "state"))
+    / "oh-no-claudecode"
+    / "sessions"
+)
 MAX_BLOCKS_PER_SESSION = 10
+
 
 # Find OpenCode binary
 def find_opencode() -> str | None:
     """Find the opencode binary. Returns None if not found (graceful degradation)."""
     import shutil
+
     path = shutil.which("opencode")
     if path:
         return path
@@ -47,6 +58,7 @@ def find_opencode() -> str | None:
             return str(fallback)
     return None
 
+
 OPENCODE_BIN = find_opencode()
 OPENCODE_SERVER = "http://127.0.0.1:4096"
 
@@ -54,11 +66,15 @@ OPENCODE_SERVER = "http://127.0.0.1:4096"
 def log(msg: str) -> None:
     """Log to stderr and file. Log file grows unbounded; configure logrotate externally."""
     import datetime
+
     timestamp = datetime.datetime.now().strftime("%H:%M:%S")
     line = f"[oh-no-claudecode {timestamp}] {msg}"
     print(line, file=sys.stderr)
     try:
-        log_dir = Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local" / "state")) / "oh-no-claudecode"
+        log_dir = (
+            Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local" / "state"))
+            / "oh-no-claudecode"
+        )
         log_dir.mkdir(parents=True, exist_ok=True)
         log_file = log_dir / "oh-no-claudecode.log"
         with open(log_file, "a") as f:
@@ -70,6 +86,7 @@ def log(msg: str) -> None:
 def _safe_session_filename(session_id: str) -> str:
     """Sanitize session_id for use as filename to prevent path traversal."""
     import hashlib
+
     # Use hash to avoid path traversal from crafted session IDs like "../../etc/passwd"
     return hashlib.sha256(session_id.encode()).hexdigest()[:16]
 
@@ -202,12 +219,14 @@ def load_rules() -> list[dict]:
                 reader = csv.reader([line])
                 row = next(reader)
                 if len(row) >= 4:
-                    rules.append({
-                        "criteria": row[0],
-                        "mode": row[1].strip(),
-                        "action": row[2].strip(),
-                        "response_prompt": row[3],
-                    })
+                    rules.append(
+                        {
+                            "criteria": row[0],
+                            "mode": row[1].strip(),
+                            "action": row[2].strip(),
+                            "response_prompt": row[3],
+                        }
+                    )
             except (csv.Error, StopIteration):
                 continue
     return rules
@@ -230,7 +249,9 @@ def find_claudemd() -> str | None:
             try:
                 content = candidate.read_text()
                 if len(content) > MAX_CLAUDEMD_SIZE:
-                    log(f"CLAUDE.md truncated from {len(content)} to {MAX_CLAUDEMD_SIZE} chars")
+                    log(
+                        f"CLAUDE.md truncated from {len(content)} to {MAX_CLAUDEMD_SIZE} chars"
+                    )
                     content = content[:MAX_CLAUDEMD_SIZE] + "\n[... truncated ...]"
                 return content
             except (OSError, UnicodeDecodeError) as e:
@@ -239,7 +260,12 @@ def find_claudemd() -> str | None:
     return None
 
 
-def build_prompt(criteria: str, response_prompt: str, message_content: str, claudemd_content: str | None = None) -> str:
+def build_prompt(
+    criteria: str,
+    response_prompt: str,
+    message_content: str,
+    claudemd_content: str | None = None,
+) -> str:
     """Build prompt for OpenCode."""
     claudemd_section = ""
     if claudemd_content:
@@ -299,15 +325,23 @@ def main():
         MIN_MESSAGE_LENGTH = 50
     is_brief_response = len(last_message) < MIN_MESSAGE_LENGTH
     if is_brief_response:
-        log(f"Brief response ({len(last_message)} < {MIN_MESSAGE_LENGTH} chars), will skip 'last' mode rules")
+        log(
+            f"Brief response ({len(last_message)} < {MIN_MESSAGE_LENGTH} chars), will skip 'last' mode rules"
+        )
 
     # Check block count for this session
     current_blocks = get_block_count(session_id)
     if current_blocks >= MAX_BLOCKS_PER_SESSION:
-        log(f"Safety valve: session {session_id} has been blocked {current_blocks} times, allowing through")
-        print(json.dumps({
-            "systemMessage": f"⚠️ Monitor safety valve: Stopped blocking after {current_blocks} attempts. Review session manually."
-        }))
+        log(
+            f"Safety valve: session {session_id} has been blocked {current_blocks} times, allowing through"
+        )
+        print(
+            json.dumps(
+                {
+                    "systemMessage": f"⚠️ Monitor safety valve: Stopped blocking after {current_blocks} attempts. Review session manually."
+                }
+            )
+        )
         sys.exit(0)
 
     # Load rules and prepare queries
@@ -345,7 +379,12 @@ def main():
                 continue
             content_to_check = last_message
         if content_to_check:
-            prompt = build_prompt(rule["criteria"], rule["response_prompt"], content_to_check, claudemd_content if mode == "claudemd" else None)
+            prompt = build_prompt(
+                rule["criteria"],
+                rule["response_prompt"],
+                content_to_check,
+                claudemd_content if mode == "claudemd" else None,
+            )
             queries.append((i, rule, prompt))
 
     log(f"Querying OpenCode for {len(queries)} rules concurrently...")
@@ -380,11 +419,10 @@ def main():
         rule, response, verdict, explanation = results[idx]
         if rule["action"] == "block" and verdict == "YES":
             new_count = increment_block_count(session_id)
-            log(f"BLOCKING (block #{new_count}/{MAX_BLOCKS_PER_SESSION}): {explanation}")
-            print(json.dumps({
-                "decision": "block",
-                "reason": explanation
-            }))
+            log(
+                f"BLOCKING (block #{new_count}/{MAX_BLOCKS_PER_SESSION}): {explanation}"
+            )
+            print(json.dumps({"decision": "block", "reason": explanation}))
             sys.exit(0)
 
     # No blocks, output notifications
@@ -392,9 +430,7 @@ def main():
         rule, response, verdict, explanation = results[idx]
         if rule["action"] == "notify" and verdict == "YES":
             log(f"NOTIFY: {explanation}")
-            print(json.dumps({
-                "systemMessage": f"⚠️ Monitor Alert: {explanation}"
-            }))
+            print(json.dumps({"systemMessage": f"⚠️ Monitor Alert: {explanation}"}))
 
     # Output suggestions
     for idx in sorted(results.keys()):

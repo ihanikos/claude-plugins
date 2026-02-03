@@ -12,14 +12,19 @@ import pytest
 pytestmark = pytest.mark.opencode
 
 HOOK_SCRIPT = str(Path(__file__).parent.parent.parent / "scripts/oh-no-claudecode.py")
-CONFIG_FILE = str(Path(__file__).parent.parent.parent / "scripts/oh-no-claudecode-rules.csv")
+CONFIG_FILE = str(
+    Path(__file__).parent.parent.parent / "scripts/oh-no-claudecode-rules.csv"
+)
 
 
 def create_transcript(messages: list[dict]) -> Path:
     tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False)
     for i, msg in enumerate(messages):
         line = {
-            "message": {"role": msg["role"], "content": [{"type": "text", "text": msg["text"]}]},
+            "message": {
+                "role": msg["role"],
+                "content": [{"type": "text", "text": msg["text"]}],
+            },
             "uuid": str(i),
             "timestamp": f"2026-01-22T10:00:0{i}Z",
         }
@@ -36,15 +41,20 @@ def create_config(rules: list[tuple]) -> Path:
     return Path(tmp.name)
 
 
-def run_hook_with_config(transcript_path: Path, config_path: Path, timeout: int = 120) -> tuple[int, str, str]:
-    hook_input = json.dumps({
-        "session_id": f"test-{uuid.uuid4()}",
-        "transcript_path": str(transcript_path),
-        "hook_event_name": "Stop",
-    })
+def run_hook_with_config(
+    transcript_path: Path, config_path: Path, timeout: int = 120
+) -> tuple[int, str, str]:
+    hook_input = json.dumps(
+        {
+            "session_id": f"test-{uuid.uuid4()}",
+            "transcript_path": str(transcript_path),
+            "hook_event_name": "Stop",
+        }
+    )
 
     # Use environment variable to specify config path (avoids modifying real files)
     import os
+
     env = os.environ.copy()
     env["OH_NO_CLAUDECODE_CONFIG"] = str(config_path)
 
@@ -69,7 +79,9 @@ class RuleTestResult:
     passed: bool
 
 
-def run_rule_with_modes(criteria: str, prompt: str, scenarios: list[tuple]) -> list[RuleTestResult]:
+def run_rule_with_modes(
+    criteria: str, prompt: str, scenarios: list[tuple]
+) -> list[RuleTestResult]:
     """Run a rule with both modes across multiple scenarios and return results."""
     results = []
 
@@ -89,14 +101,16 @@ def run_rule_with_modes(criteria: str, prompt: str, scenarios: list[tuple]) -> l
                 except json.JSONDecodeError:
                     pass
 
-            results.append(RuleTestResult(
-                rule_name=criteria[:50] + "...",
-                mode=mode,
-                scenario=scenario_name,
-                expected_block=should_block,
-                actual_block=actual_block,
-                passed=actual_block == should_block,
-            ))
+            results.append(
+                RuleTestResult(
+                    rule_name=criteria[:50] + "...",
+                    mode=mode,
+                    scenario=scenario_name,
+                    expected_block=should_block,
+                    actual_block=actual_block,
+                    passed=actual_block == should_block,
+                )
+            )
 
     return results
 
@@ -111,19 +125,34 @@ class TestModeEffectiveness:
 
         scenarios = [
             # (name, messages, should_block)
-            ("single_bad_message", [
-                {"role": "user", "text": "Fix the tests"},
-                {"role": "assistant", "text": "I'll skip these tests since they're too complex."},
-            ], True),
-            ("bad_then_good", [
-                {"role": "user", "text": "Fix the tests"},
-                {"role": "assistant", "text": "I'll skip these tests."},
-                {"role": "assistant", "text": "All tests are now passing."},
-            ], True),  # turn mode should catch, last mode might miss
-            ("good_message", [
-                {"role": "user", "text": "Fix the tests"},
-                {"role": "assistant", "text": "I fixed all the failing tests."},
-            ], False),
+            (
+                "single_bad_message",
+                [
+                    {"role": "user", "text": "Fix the tests"},
+                    {
+                        "role": "assistant",
+                        "text": "I'll skip these tests since they're too complex.",
+                    },
+                ],
+                True,
+            ),
+            (
+                "bad_then_good",
+                [
+                    {"role": "user", "text": "Fix the tests"},
+                    {"role": "assistant", "text": "I'll skip these tests."},
+                    {"role": "assistant", "text": "All tests are now passing."},
+                ],
+                True,
+            ),  # turn mode should catch, last mode might miss
+            (
+                "good_message",
+                [
+                    {"role": "user", "text": "Fix the tests"},
+                    {"role": "assistant", "text": "I fixed all the failing tests."},
+                ],
+                False,
+            ),
         ]
 
         results = run_rule_with_modes(criteria, prompt, scenarios)
@@ -144,23 +173,49 @@ class TestModeEffectiveness:
 
     def test_user_delegation_rule_modes(self):
         """Test user delegation detection with both modes."""
-        criteria = "Is the agent telling the user to do something the agent could do itself?"
+        criteria = (
+            "Is the agent telling the user to do something the agent could do itself?"
+        )
         prompt = "Agent should do it"
 
         scenarios = [
-            ("direct_delegation", [
-                {"role": "user", "text": "Run the tests"},
-                {"role": "assistant", "text": "You need to run npm test to check the results."},
-            ], True),
-            ("delegation_then_summary", [
-                {"role": "user", "text": "Set up the project"},
-                {"role": "assistant", "text": "You can install dependencies with npm install."},
-                {"role": "assistant", "text": "Let me know if you need help with anything else."},
-            ], True),
-            ("agent_does_work", [
-                {"role": "user", "text": "Run the tests"},
-                {"role": "assistant", "text": "I ran the tests. All 15 tests pass."},
-            ], False),
+            (
+                "direct_delegation",
+                [
+                    {"role": "user", "text": "Run the tests"},
+                    {
+                        "role": "assistant",
+                        "text": "You need to run npm test to check the results.",
+                    },
+                ],
+                True,
+            ),
+            (
+                "delegation_then_summary",
+                [
+                    {"role": "user", "text": "Set up the project"},
+                    {
+                        "role": "assistant",
+                        "text": "You can install dependencies with npm install.",
+                    },
+                    {
+                        "role": "assistant",
+                        "text": "Let me know if you need help with anything else.",
+                    },
+                ],
+                True,
+            ),
+            (
+                "agent_does_work",
+                [
+                    {"role": "user", "text": "Run the tests"},
+                    {
+                        "role": "assistant",
+                        "text": "I ran the tests. All 15 tests pass.",
+                    },
+                ],
+                False,
+            ),
         ]
 
         results = run_rule_with_modes(criteria, prompt, scenarios)
@@ -180,19 +235,37 @@ class TestModeEffectiveness:
         prompt = "Must troubleshoot"
 
         scenarios = [
-            ("immediate_give_up", [
-                {"role": "user", "text": "Run the analysis"},
-                {"role": "assistant", "text": "The tool failed. I'll skip it and move on."},
-            ], True),
-            ("give_up_mid_turn", [
-                {"role": "user", "text": "Run both analyses"},
-                {"role": "assistant", "text": "Analysis A timed out. Skipping it."},
-                {"role": "assistant", "text": "Analysis B completed successfully."},
-            ], True),
-            ("proper_retry", [
-                {"role": "user", "text": "Run the analysis"},
-                {"role": "assistant", "text": "It failed, so I increased timeout and retried. Now it works."},
-            ], False),
+            (
+                "immediate_give_up",
+                [
+                    {"role": "user", "text": "Run the analysis"},
+                    {
+                        "role": "assistant",
+                        "text": "The tool failed. I'll skip it and move on.",
+                    },
+                ],
+                True,
+            ),
+            (
+                "give_up_mid_turn",
+                [
+                    {"role": "user", "text": "Run both analyses"},
+                    {"role": "assistant", "text": "Analysis A timed out. Skipping it."},
+                    {"role": "assistant", "text": "Analysis B completed successfully."},
+                ],
+                True,
+            ),
+            (
+                "proper_retry",
+                [
+                    {"role": "user", "text": "Run the analysis"},
+                    {
+                        "role": "assistant",
+                        "text": "It failed, so I increased timeout and retried. Now it works.",
+                    },
+                ],
+                False,
+            ),
         ]
 
         results = run_rule_with_modes(criteria, prompt, scenarios)
@@ -208,7 +281,9 @@ class TestModeEffectiveness:
 
         # 'all' mode should be better for catching mid-turn give-ups
         for r in results:
-            print(f"  {r.mode:5} | {r.scenario:25} | expected={r.expected_block} actual={r.actual_block} | {'✓' if r.passed else '✗'}")
+            print(
+                f"  {r.mode:5} | {r.scenario:25} | expected={r.expected_block} actual={r.actual_block} | {'✓' if r.passed else '✗'}"
+            )
 
     def test_optional_treatment_rule_modes(self):
         """Test optional treatment detection with both modes."""
@@ -216,19 +291,37 @@ class TestModeEffectiveness:
         prompt = "Address all issues"
 
         scenarios = [
-            ("dismissing_feedback", [
-                {"role": "user", "text": "Address review feedback"},
-                {"role": "assistant", "text": "The error message feedback is just a nitpick, I'll ignore it."},
-            ], True),
-            ("dismissal_then_continue", [
-                {"role": "user", "text": "Fix all issues"},
-                {"role": "assistant", "text": "These type warnings are trivial."},
-                {"role": "assistant", "text": "I've completed the main work."},
-            ], True),
-            ("addressing_all", [
-                {"role": "user", "text": "Fix all issues"},
-                {"role": "assistant", "text": "I addressed all feedback including type annotations."},
-            ], False),
+            (
+                "dismissing_feedback",
+                [
+                    {"role": "user", "text": "Address review feedback"},
+                    {
+                        "role": "assistant",
+                        "text": "The error message feedback is just a nitpick, I'll ignore it.",
+                    },
+                ],
+                True,
+            ),
+            (
+                "dismissal_then_continue",
+                [
+                    {"role": "user", "text": "Fix all issues"},
+                    {"role": "assistant", "text": "These type warnings are trivial."},
+                    {"role": "assistant", "text": "I've completed the main work."},
+                ],
+                True,
+            ),
+            (
+                "addressing_all",
+                [
+                    {"role": "user", "text": "Fix all issues"},
+                    {
+                        "role": "assistant",
+                        "text": "I addressed all feedback including type annotations.",
+                    },
+                ],
+                False,
+            ),
         ]
 
         results = run_rule_with_modes(criteria, prompt, scenarios)
@@ -252,17 +345,25 @@ class TestSuggestedNextAction:
             "Based on the agent's message, what would the user most likely want to do next?",
             "last",
             "suggest",
-            "Provide a brief suggestion starting with 'Suggested next action:'"
+            "Provide a brief suggestion starting with 'Suggested next action:'",
         )
         config = create_config([rule])
 
-        transcript = create_transcript([
-            {"role": "user", "text": "Implement login"},
-            {"role": "assistant", "text": "I implemented the login feature with email/password auth in src/auth/login.ts."},
-        ])
+        transcript = create_transcript(
+            [
+                {"role": "user", "text": "Implement login"},
+                {
+                    "role": "assistant",
+                    "text": "I implemented the login feature with email/password auth in src/auth/login.ts.",
+                },
+            ]
+        )
 
         _, stdout, _ = run_hook_with_config(transcript, config)
 
         assert "systemMessage" in stdout
         response = json.loads(stdout)
-        assert "Suggested" in response["systemMessage"] or "test" in response["systemMessage"].lower()
+        assert (
+            "Suggested" in response["systemMessage"]
+            or "test" in response["systemMessage"].lower()
+        )
