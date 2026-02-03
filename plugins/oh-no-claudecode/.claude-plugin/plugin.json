@@ -1,0 +1,10 @@
+{
+  "name": "oh-no-claudecode",
+  "description": "LLM-as-judge behavior monitoring for Claude Code - blocks deviations, notifies on workarounds, suggests next actions",
+  "version": "1.0.0",
+  "author": {
+    "name": "ihanikos"
+  },
+  "repository": "https://github.com/ihanikos/claude-plugins",
+  "license": "MIT"
+}

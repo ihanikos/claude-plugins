@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ${CLAUDE_PLUGIN_ROOT}/scripts/oh-no-claudecode.py",
+            "timeout": 120
+          }
+        ]
+      }
+    ]
+  }
+}
