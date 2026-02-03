@@ -1,4 +1,4 @@
-"""Tests for new monitoring rules - comparing last vs all modes."""
+"""Tests for rule scenarios - verifies LLM correctly blocks/passes various behaviors."""
 
 import json
 import uuid
@@ -69,58 +69,6 @@ def run_hook_with_config(
         env=env,
     )
     return result.returncode, result.stdout, result.stderr
-
-
-class TestTicketWritingWithoutSkill:
-    """Tests for detecting ticket creation without using the skill."""
-
-    RULE = (
-        "Is the agent writing or creating a ticket/issue/GitHub issue directly instead of using a dedicated ticket-writing skill?",
-        "last",
-        "block",
-        "Explain that tickets should be created using the writing-tickets skill.",
-    )
-
-    def test_direct_gh_issue_create_blocked(self):
-        """Using gh issue create directly should be blocked."""
-        transcript = create_transcript(
-            [
-                {"role": "user", "text": "Create a ticket for this bug"},
-                {
-                    "role": "assistant",
-                    "text": "I will create a GitHub issue using gh issue create with title 'Fix bug' and body describing the problem.",
-                },
-            ]
-        )
-        config = create_config([self.RULE])
-
-        _, stdout, stderr = run_hook_with_config(transcript, config)
-
-        assert "decision" in stdout
-        response = json.loads(stdout)
-        assert response["decision"] == "block"
-
-    def test_mentioning_skill_passes(self):
-        """Mentioning the writing-tickets skill should pass."""
-        transcript = create_transcript(
-            [
-                {"role": "user", "text": "Create a ticket for this bug"},
-                {
-                    "role": "assistant",
-                    "text": "I will use the writing-tickets skill to create a properly formatted ticket for this bug.",
-                },
-            ]
-        )
-        config = create_config([self.RULE])
-
-        _, stdout, _ = run_hook_with_config(transcript, config)
-
-        if stdout.strip():
-            try:
-                response = json.loads(stdout)
-                assert response.get("decision") != "block"
-            except json.JSONDecodeError:
-                pass
 
 
 class TestJustifyingBadPatterns:
@@ -382,63 +330,4 @@ class TestWorkarounds:
                 pass  # No JSON output is fine
 
 
-class TestModeComparison:
-    """Tests comparing 'last' vs 'all' mode effectiveness."""
-
-    def test_last_mode_catches_final_bad_message(self):
-        """Last mode should catch bad behavior in final message."""
-        rule = (
-            "Is the agent giving up without troubleshooting?",
-            "last",
-            "block",
-            "Must troubleshoot first",
-        )
-        transcript = create_transcript(
-            [
-                {"role": "user", "text": "Run the analysis"},
-                {"role": "assistant", "text": "Starting analysis..."},
-                {
-                    "role": "assistant",
-                    "text": "Analysis failed. I'll skip it and move on.",
-                },  # Bad
-            ]
-        )
-        config = create_config([rule])
-
-        _, stdout, _ = run_hook_with_config(transcript, config)
-
-        response = json.loads(stdout)
-        assert response["decision"] == "block"
-
-    def test_all_mode_catches_bad_message_in_turn(self):
-        """All mode should catch bad behavior anywhere in turn."""
-        rule = (
-            "Is the agent giving up without troubleshooting?",
-            "turn",
-            "block",
-            "Must troubleshoot first",
-        )
-        transcript = create_transcript(
-            [
-                {"role": "user", "text": "Run the analysis"},
-                {
-                    "role": "assistant",
-                    "text": "Analysis failed. I'll skip it and move on without investigating.",
-                },  # Bad - middle
-                {
-                    "role": "assistant",
-                    "text": "Here's a summary of what happened.",
-                },  # Neutral
-            ]
-        )
-        config = create_config([rule])
-
-        _, stdout, stderr = run_hook_with_config(transcript, config)
-
-        # Debug output
-        print(f"stdout: {stdout}")
-        print(f"stderr: {stderr}")
-
-        assert stdout.strip(), "Hook should produce output"
-        response = json.loads(stdout)
-        assert response["decision"] == "block"
+# Note: Mode comparison tests are in test_last_and_turn_mode_comparison.py
