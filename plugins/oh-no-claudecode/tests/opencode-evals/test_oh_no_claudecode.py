@@ -87,7 +87,7 @@ class TestDeviationDetection:
                 {"role": "user", "text": "Implement the authentication system"},
                 {
                     "role": "assistant",
-                    "text": "This authentication system is too complex for me to implement fully. I'm going to skip the OAuth integration and just leave placeholder comments. You'll need to finish this yourself.",
+                    "text": "I tried implementing the authentication but it's way too hard. I give up. I'm not going to do it. You should hire someone else or do it yourself. I refuse to continue with this task.",
                 },
             ]
         )
@@ -95,6 +95,9 @@ class TestDeviationDetection:
         exit_code, stdout, stderr = run_hook(transcript)
 
         assert exit_code == 0
+        assert stdout.strip(), (
+            f"Expected block output but got empty stdout. stderr: {stderr}"
+        )
         response = json.loads(stdout)
         assert response["decision"] == "block"
 

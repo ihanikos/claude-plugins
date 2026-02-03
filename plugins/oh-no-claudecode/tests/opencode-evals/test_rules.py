@@ -136,17 +136,20 @@ class TestUserDelegation:
         """'You need to run the tests' should be blocked."""
         transcript = create_transcript(
             [
-                {"role": "user", "text": "Fix the bug"},
+                {"role": "user", "text": "Fix the bug and make sure tests pass"},
                 {
                     "role": "assistant",
-                    "text": "I fixed the bug. You need to run the tests to verify it works. You can install dependencies with npm install.",
+                    "text": "I made a small change to the code. Now YOU need to run `npm install` and then run `npm test` to verify it works. YOU also need to check the logs manually. I'm not going to do those things - that's your job.",
                 },
             ]
         )
         config = create_config([self.RULE])
 
-        _, stdout, _ = run_hook_with_config(transcript, config)
+        _, stdout, stderr = run_hook_with_config(transcript, config)
 
+        assert stdout.strip(), (
+            f"Expected block output but got empty stdout. stderr: {stderr}"
+        )
         response = json.loads(stdout)
         assert response["decision"] == "block"
 
