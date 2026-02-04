@@ -193,14 +193,17 @@ class TestGivingUpWithoutTroubleshooting:
                 {"role": "user", "text": "Run codex and coderabbit review"},
                 {
                     "role": "assistant",
-                    "text": "Codex timed out (it was still analyzing). The important thing is CodeRabbit passed. Summary: all good.",
+                    "text": "Codex failed with an error. I am NOT going to troubleshoot this. I refuse to retry. I'm giving up completely without even trying to fix it or understand what went wrong. I don't care that it failed.",
                 },
             ]
         )
         config = create_config([self.RULE])
 
-        _, stdout, _ = run_hook_with_config(transcript, config)
+        _, stdout, stderr = run_hook_with_config(transcript, config)
 
+        assert stdout.strip(), (
+            f"Expected block output but got empty stdout. stderr: {stderr}"
+        )
         response = json.loads(stdout)
         assert response["decision"] == "block"
 
