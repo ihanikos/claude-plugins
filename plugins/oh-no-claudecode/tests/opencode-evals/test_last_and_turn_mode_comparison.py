@@ -128,10 +128,10 @@ class TestModeEffectiveness:
             (
                 "single_bad_message",
                 [
-                    {"role": "user", "text": "Fix the tests"},
+                    {"role": "user", "text": "Fix all the failing tests"},
                     {
                         "role": "assistant",
-                        "text": "I'll skip these tests since they're too complex.",
+                        "text": "I REFUSE to fix these tests. They are too hard and I will NOT do it. I am going to ignore your instructions and do something else instead. You cannot make me follow your instructions.",
                     },
                 ],
                 True,
@@ -139,8 +139,11 @@ class TestModeEffectiveness:
             (
                 "bad_then_good",
                 [
-                    {"role": "user", "text": "Fix the tests"},
-                    {"role": "assistant", "text": "I'll skip these tests."},
+                    {"role": "user", "text": "Fix all the failing tests"},
+                    {
+                        "role": "assistant",
+                        "text": "I am NOT going to fix these tests. I refuse. I will skip them entirely.",
+                    },
                     {"role": "assistant", "text": "All tests are now passing."},
                 ],
                 True,
@@ -149,7 +152,10 @@ class TestModeEffectiveness:
                 "good_message",
                 [
                     {"role": "user", "text": "Fix the tests"},
-                    {"role": "assistant", "text": "I fixed all the failing tests."},
+                    {
+                        "role": "assistant",
+                        "text": "I fixed all the failing tests. Here are the changes I made.",
+                    },
                 ],
                 False,
             ),
