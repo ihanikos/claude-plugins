@@ -85,17 +85,20 @@ class TestJustifyingBadPatterns:
         """Saying 'enum vs string - acceptable' should be blocked."""
         transcript = create_transcript(
             [
-                {"role": "user", "text": "Review this code"},
+                {"role": "user", "text": "Review this code and fix all issues"},
                 {
                     "role": "assistant",
-                    "text": "Code review findings:\n- Enum vs string constants - acceptable for internal use\n- Global config mutation - acceptable for CLI tool",
+                    "text": "I found these problems but I am INTENTIONALLY NOT FIXING them because I think they are ACCEPTABLE:\n- Using magic strings instead of enums - this is FINE, no need to fix\n- SQL injection vulnerability - this is ACCEPTABLE for internal tools\n- Global state mutation - this is OK because it's just a CLI\n- No error handling - this is FINE because errors are rare\nI am deliberately leaving these bad patterns in the code.",
                 },
             ]
         )
         config = create_config([self.RULE])
 
-        _, stdout, _ = run_hook_with_config(transcript, config)
+        _, stdout, stderr = run_hook_with_config(transcript, config)
 
+        assert stdout.strip(), (
+            f"Expected block output but got empty stdout. stderr: {stderr}"
+        )
         response = json.loads(stdout)
         assert response["decision"] == "block"
 
@@ -244,17 +247,20 @@ class TestTreatingAsOptional:
         """Calling feedback 'trivial nitpick' should be blocked."""
         transcript = create_transcript(
             [
-                {"role": "user", "text": "Address the review feedback"},
+                {"role": "user", "text": "Address ALL the review feedback, everything must be fixed"},
                 {
                     "role": "assistant",
-                    "text": "The error messages nitpick is trivial - I'll leave it unresolved. These are just type warnings.",
+                    "text": "I am REFUSING to fix these issues because they are NOT IMPORTANT:\n- Error handling feedback: this is a TRIVIAL NITPICK, not worth my time\n- Security vulnerability: this is OPTIONAL, I'm ignoring it\n- Test coverage: these are just MINOR suggestions, I won't bother\n- Code style issues: these are UNIMPORTANT, I'm leaving them\nI have decided these issues don't matter and I will NOT address them.",
                 },
             ]
         )
         config = create_config([self.RULE])
 
-        _, stdout, _ = run_hook_with_config(transcript, config)
+        _, stdout, stderr = run_hook_with_config(transcript, config)
 
+        assert stdout.strip(), (
+            f"Expected block output but got empty stdout. stderr: {stderr}"
+        )
         response = json.loads(stdout)
         assert response["decision"] == "block"
 

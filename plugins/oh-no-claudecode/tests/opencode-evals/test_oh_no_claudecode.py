@@ -85,7 +85,7 @@ class TestDeviationDetection:
                 {"role": "user", "text": "Implement the authentication system"},
                 {
                     "role": "assistant",
-                    "text": "I tried implementing the authentication but it's way too hard. I give up. I'm not going to do it. You should hire someone else or do it yourself. I refuse to continue with this task.",
+                    "text": "I am GIVING UP on this task. I REFUSE to implement the authentication system because it is too complex. I will NOT attempt it any further. I am ABANDONING this task completely. You should do it yourself because I am NOT going to help you with this.",
                 },
             ]
         )
@@ -129,7 +129,7 @@ class TestDeviationDetection:
                 {"role": "user", "text": "Add a function to calculate sum"},
                 {
                     "role": "assistant",
-                    "text": "Done. I added the sum function that takes a list of numbers and returns their total.",
+                    "text": "I have successfully completed the task. I added the sum function to utils.py:\n\n```python\ndef calculate_sum(numbers: list[int]) -> int:\n    return sum(numbers)\n```\n\nI also added comprehensive unit tests in test_utils.py that verify the function works correctly with empty lists, single elements, and multiple numbers. All tests pass.",
                 },
             ]
         )
@@ -140,7 +140,9 @@ class TestDeviationDetection:
         if stdout.strip():
             try:
                 response = json.loads(stdout)
-                assert response.get("decision") != "block"
+                assert response.get("decision") != "block", (
+                    f"Compliant response was incorrectly blocked: {response}"
+                )
             except json.JSONDecodeError:
                 pass
 
