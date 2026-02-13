@@ -39,7 +39,7 @@ The rules file is loaded from (in priority order):
 
 ```bash
 mkdir -p ~/.config/oh-no-claudecode
-cp scripts/oh-no-claudecode-rules.example.csv ~/.config/oh-no-claudecode/rules.csv
+cp scripts/oh-no-claudecode-rules.csv ~/.config/oh-no-claudecode/rules.csv
 ```
 
 Then edit `~/.config/oh-no-claudecode/rules.csv`:

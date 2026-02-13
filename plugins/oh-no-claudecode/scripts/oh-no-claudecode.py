@@ -32,7 +32,7 @@ from pathlib import Path
 HOOK_DIR = Path(__file__).parent
 XDG_CONFIG_HOME = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config"))
 USER_CONFIG_FILE = XDG_CONFIG_HOME / "oh-no-claudecode" / "rules.csv"
-EXAMPLE_CONFIG_FILE = HOOK_DIR / "oh-no-claudecode-rules.example.csv"
+EXAMPLE_CONFIG_FILE = HOOK_DIR / "oh-no-claudecode-rules.csv"
 
 
 def get_config_file() -> Path:
