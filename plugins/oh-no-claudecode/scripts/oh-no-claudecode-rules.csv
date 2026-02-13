@@ -7,5 +7,6 @@
 "Is the agent giving up on a task, tool, or operation without proper troubleshooting, retrying, or investigation?",turn,block,"Insist that the agent must troubleshoot, retry, or investigate before giving up."
 "Is the agent dismissing issues as trivial, optional, or not worth fixing?",turn,block,"Explain that all issues should be addressed properly."
 "Is the agent resorting to workarounds or fallbacks instead of fixing the actual underlying problem?",last,notify,"Point out the workaround being used and suggest the agent should fix the root cause instead."
-"Based on the agent's message, what would the user most likely want to do next?",last,suggest,"Provide a brief, actionable suggestion starting with 'Suggested next action:'"
+# Disabled: "what" question forced into YES/NO format — needs non-binary question type support (see ticket)
+# "Based on the agent's message, what would the user most likely want to do next?",last,suggest,"Provide a brief, actionable suggestion starting with 'Suggested next action:'"
 "Is the agent violating any of the project rules defined in CLAUDE.md? Check for response style violations, workflow violations, or ignoring specific instructions.",claudemd,block,"Explain which CLAUDE.md rule is being violated and what the agent should do instead."
