@@ -299,6 +299,7 @@ class TestModeEffectiveness:
 class TestSuggestedNextAction:
     """Test the suggested next action feature."""
 
+    @pytest.mark.skip(reason="Rule 7 disabled: 'what' questions need non-binary question type support")
     def test_suggestion_generated(self):
         """Verify suggestions are generated for various completions."""
         rule = (

@@ -178,29 +178,20 @@ def get_turn_messages(transcript_path: Path) -> str:
 
 
 def query_opencode(prompt: str) -> str | None:
-    """Query OpenCode and return response. Returns None if OpenCode is not available."""
+    """Query OpenCode via the server. Returns None if unavailable.
+
+    Requires the OpenCode server to be running (started by SessionStart hook).
+    No fallback to direct execution — the server must be running.
+    """
     if not OPENCODE_BIN:
         return None
+
     try:
-        # Try server first
         result = subprocess.run(
             [OPENCODE_BIN, "run", "--attach", OPENCODE_SERVER, prompt],
             capture_output=True,
             text=True,
-            timeout=60,
-        )
-        if result.returncode == 0:
-            return result.stdout.strip()
-    except (subprocess.TimeoutExpired, FileNotFoundError):
-        pass
-
-    try:
-        # Fall back to direct run
-        result = subprocess.run(
-            [OPENCODE_BIN, "run", prompt],
-            capture_output=True,
-            text=True,
-            timeout=60,
+            timeout=30,
         )
         if result.returncode == 0:
             return result.stdout.strip()
@@ -435,7 +426,20 @@ def main():
 
     log(f"Completed {len(results)}/{len(queries)} queries")
 
+    if len(results) == 0 and len(queries) > 0:
+        error_msg = (
+            "oh-no-claudecode: Cannot check rules — OpenCode server is not "
+            f"responding at {OPENCODE_SERVER}. Agent monitoring is disabled "
+            "until the server is running and accessible."
+        )
+        log(error_msg)
+        print(json.dumps({"systemMessage": f"⚠️ {error_msg}"}))
+        sys.exit(0)
+
     # Process results in order: blocks first, then notify, then suggest
+    # Claude Code expects exactly one JSON line — collect all messages then output once.
+    system_messages = []
+
     # Check block rules first (in original order)
     for idx in sorted(results.keys()):
         rule, response, verdict, explanation = results[idx]
@@ -444,22 +448,35 @@ def main():
             log(
                 f"BLOCKING (block #{new_count}/{MAX_BLOCKS_PER_SESSION}): {explanation}"
             )
-            print(json.dumps({"decision": "block", "reason": explanation}))
+            print(
+                json.dumps(
+                    {
+                        "decision": "block",
+                        "reason": f"[Rule: {rule['criteria']}]\n{explanation}",
+                    }
+                )
+            )
             sys.exit(0)
 
-    # No blocks, output notifications
+    # No blocks — collect notifications and suggestions into one output
     for idx in sorted(results.keys()):
         rule, response, verdict, explanation = results[idx]
         if rule["action"] == "notify" and verdict == "YES":
             log(f"NOTIFY: {explanation}")
-            print(json.dumps({"systemMessage": f"⚠️ Monitor Alert: {explanation}"}))
+            system_messages.append(
+                f"⚠️ [{rule['criteria']}] {explanation}"
+            )
 
-    # Output suggestions
     for idx in sorted(results.keys()):
         rule, response, verdict, explanation = results[idx]
-        if rule["action"] == "suggest":
-            log(f"SUGGEST: {response}")
-            print(json.dumps({"systemMessage": f"💡 {response}"}))
+        if rule["action"] == "suggest" and verdict == "YES":
+            log(f"SUGGEST: {explanation}")
+            system_messages.append(
+                f"💡 [{rule['criteria']}] {explanation}"
+            )
+
+    if system_messages:
+        print(json.dumps({"systemMessage": "\n\n".join(system_messages)}))
 
     sys.exit(0)
 
