@@ -16,6 +16,17 @@
       "source": "./plugins/bash-output-guard",
       "category": "productivity",
       "tags": ["bash", "safety", "hooks", "output-limiting"]
+    },
+    {
+      "name": "oh-no-claudecode",
+      "description": "LLM-as-judge behavior monitoring for Claude Code — blocks deviations, detects workarounds, suggests next actions",
+      "version": "1.0.0",
+      "author": {
+        "name": "ihanikos"
+      },
+      "source": "./plugins/oh-no-claudecode",
+      "category": "monitoring",
+      "tags": ["llm-judge", "behavior-monitoring", "hooks", "opencode"]
     }
   ]
 }
