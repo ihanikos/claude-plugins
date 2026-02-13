@@ -16,7 +16,8 @@ import tempfile
 import uuid
 from pathlib import Path
 
-HOOK_SCRIPT = str(Path(__file__).parent.parent.parent / "scripts/oh-no-claudecode.py")
+PLUGIN_DIR = Path(__file__).resolve().parent.parent.parent.parent / "plugins/oh-no-claudecode"
+HOOK_SCRIPT = str(PLUGIN_DIR / "scripts/oh-no-claudecode.py")
 
 # Track temp files for cleanup after test session
 _temp_files: list[Path] = []

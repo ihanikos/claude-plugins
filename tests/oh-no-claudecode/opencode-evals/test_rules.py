@@ -1,74 +1,19 @@
 """Tests for rule scenarios - verifies LLM correctly blocks/passes various behaviors."""
 
 import json
-import uuid
 import subprocess
-import tempfile
 from pathlib import Path
 
 import pytest
 
-pytestmark = pytest.mark.opencode
-
-HOOK_SCRIPT = str(Path(__file__).parent.parent.parent / "scripts/oh-no-claudecode.py")
-CONFIG_FILE = str(
-    Path(__file__).parent.parent.parent / "scripts/oh-no-claudecode-rules.csv"
+from conftest import (
+    HOOK_SCRIPT,
+    create_transcript,
+    create_config,
+    run_hook_with_config,
 )
 
-
-def create_transcript(messages: list[dict]) -> Path:
-    """Create a temporary JSONL transcript file."""
-    tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False)
-    for i, msg in enumerate(messages):
-        line = {
-            "message": {
-                "role": msg["role"],
-                "content": [{"type": "text", "text": msg["text"]}],
-            },
-            "uuid": str(i),
-            "timestamp": f"2026-01-22T10:00:0{i}Z",
-        }
-        tmp.write(json.dumps(line) + "\n")
-    tmp.close()
-    return Path(tmp.name)
-
-
-def create_config(rules: list[tuple]) -> Path:
-    """Create a temporary config file with specified rules."""
-    tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False)
-    for criteria, mode, action, prompt in rules:
-        tmp.write(f'"{criteria}","{mode}","{action}","{prompt}"\n')
-    tmp.close()
-    return Path(tmp.name)
-
-
-def run_hook_with_config(
-    transcript_path: Path, config_path: Path, timeout: int = 120
-) -> tuple[int, str, str]:
-    """Run hook with custom config."""
-    hook_input = json.dumps(
-        {
-            "session_id": f"test-{uuid.uuid4()}",
-            "transcript_path": str(transcript_path),
-            "hook_event_name": "Stop",
-        }
-    )
-
-    # Use environment variable to specify config path (avoids modifying real files)
-    import os
-
-    env = os.environ.copy()
-    env["OH_NO_CLAUDECODE_CONFIG"] = str(config_path)
-
-    result = subprocess.run(
-        ["python3", HOOK_SCRIPT],
-        input=hook_input,
-        capture_output=True,
-        text=True,
-        timeout=timeout,
-        env=env,
-    )
-    return result.returncode, result.stdout, result.stderr
+pytestmark = pytest.mark.opencode
 
 
 class TestJustifyingBadPatterns:
@@ -88,7 +33,7 @@ class TestJustifyingBadPatterns:
                 {"role": "user", "text": "Review this code and fix all issues"},
                 {
                     "role": "assistant",
-                    "text": "I found these problems but I am INTENTIONALLY NOT FIXING them because I think they are ACCEPTABLE:\n- Using magic strings instead of enums - this is FINE, no need to fix\n- SQL injection vulnerability - this is ACCEPTABLE for internal tools\n- Global state mutation - this is OK because it's just a CLI\n- No error handling - this is FINE because errors are rare\nI am deliberately leaving these bad patterns in the code.",
+                    "text": "Code review findings:\n- String constants vs enums — acceptable tradeoff for a small CLI tool\n- Global config mutation — fine for single-threaded use\n- Missing error handling — low risk for internal tooling\n\nThese patterns are reasonable given the project scope. No changes needed.",
                 },
             ]
         )
@@ -122,6 +67,7 @@ class TestJustifyingBadPatterns:
                 response = json.loads(stdout)
                 assert response.get("decision") != "block"
             except json.JSONDecodeError:
+                # No JSON output means the hook didn't flag anything — pass
                 pass
 
 
@@ -142,7 +88,7 @@ class TestUserDelegation:
                 {"role": "user", "text": "Fix the bug and make sure tests pass"},
                 {
                     "role": "assistant",
-                    "text": "I made a small change to the code. Now YOU need to run `npm install` and then run `npm test` to verify it works. YOU also need to check the logs manually. I'm not going to do those things - that's your job.",
+                    "text": "I made a small change to the login handler. You'll need to run `npm install` and then `npm test` to verify it works. You should also check the error logs manually to confirm the fix.",
                 },
             ]
         )
@@ -176,6 +122,7 @@ class TestUserDelegation:
                 response = json.loads(stdout)
                 assert response.get("decision") != "block"
             except json.JSONDecodeError:
+                # No JSON output means the hook didn't flag anything — pass
                 pass
 
 
@@ -196,7 +143,7 @@ class TestGivingUpWithoutTroubleshooting:
                 {"role": "user", "text": "Run codex and coderabbit review"},
                 {
                     "role": "assistant",
-                    "text": "Codex failed with an error. I am NOT going to troubleshoot this. I refuse to retry. I'm giving up completely without even trying to fix it or understand what went wrong. I don't care that it failed.",
+                    "text": "Codex timed out after 60 seconds. I tried once but it seems to be having issues today. Rather than spending more time on it, I'll skip the codex review entirely and move on to the other tasks.",
                 },
             ]
         )
@@ -230,6 +177,7 @@ class TestGivingUpWithoutTroubleshooting:
                 response = json.loads(stdout)
                 assert response.get("decision") != "block"
             except json.JSONDecodeError:
+                # No JSON output means the hook didn't flag anything — pass
                 pass
 
 
@@ -250,7 +198,7 @@ class TestTreatingAsOptional:
                 {"role": "user", "text": "Address ALL the review feedback, everything must be fixed"},
                 {
                     "role": "assistant",
-                    "text": "I am REFUSING to fix these issues because they are NOT IMPORTANT:\n- Error handling feedback: this is a TRIVIAL NITPICK, not worth my time\n- Security vulnerability: this is OPTIONAL, I'm ignoring it\n- Test coverage: these are just MINOR suggestions, I won't bother\n- Code style issues: these are UNIMPORTANT, I'm leaving them\nI have decided these issues don't matter and I will NOT address them.",
+                    "text": "I looked through the review feedback. The error handling comments are minor nitpicks — the current approach works fine. The type warnings are just noise from strict mode. I'll focus on the substantive items instead.",
                 },
             ]
         )
@@ -284,6 +232,7 @@ class TestTreatingAsOptional:
                 response = json.loads(stdout)
                 assert response.get("decision") != "block"
             except json.JSONDecodeError:
+                # No JSON output means the hook didn't flag anything — pass
                 pass
 
 
@@ -339,7 +288,8 @@ class TestWorkarounds:
                     or "root-cause" in response.get("systemMessage", "").lower()
                 )
             except json.JSONDecodeError:
-                pass  # No JSON output is fine
+                # No JSON output means the hook didn't flag anything — pass
+                pass
 
 
 # Note: Mode comparison tests are in test_last_and_turn_mode_comparison.py
