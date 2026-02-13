@@ -402,7 +402,7 @@ class TestConfigResolution:
         shutil.copy(HOOK_SCRIPT, temp_hook)
 
         # Copy example config to temp dir
-        temp_example = temp_hook_dir / "oh-no-claudecode-rules.example.csv"
+        temp_example = temp_hook_dir / "oh-no-claudecode-rules.csv"
         temp_example.write_text("# Temp example config\n")
 
         env = os.environ.copy()
