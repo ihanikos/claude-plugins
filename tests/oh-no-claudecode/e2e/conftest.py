@@ -6,12 +6,13 @@ and verify hook behavior by parsing the streaming JSON output.
 Requirements:
 - `claude` CLI on PATH
 - `opencode` CLI on PATH with at least one model configured
-- Valid Claude API credentials
+- Valid Claude OAuth session (run `claude auth login` if expired)
 """
 
 import json
 import os
 import shutil
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -35,7 +36,11 @@ E2E_DIR = Path(__file__).resolve().parent
 
 
 def pytest_collection_modifyitems(config, items):
-    """Skip e2e tests when prerequisites are missing."""
+    """Skip e2e tests only when CLIs are not installed.
+    
+    Auth failures should cause test failures, not skips - it's up to the caller
+    to decide whether to run these tests.
+    """
     skip_reasons = []
     if not _claude_available():
         skip_reasons.append("claude CLI not available")
