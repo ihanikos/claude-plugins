@@ -62,6 +62,7 @@ BLOCK_COUNT_DIR = Path(
     )
 )
 MAX_BLOCKS_PER_SESSION = 10
+MAX_OVERRIDES_PER_SESSION = 5
 
 
 # Find OpenCode binary
@@ -138,6 +139,27 @@ def increment_block_count(session_id: str) -> int:
     return count
 
 
+def get_override_count(session_id: str) -> int:
+    """Get current override count for session."""
+    BLOCK_COUNT_DIR.mkdir(parents=True, exist_ok=True)
+    count_file = BLOCK_COUNT_DIR / f"{_safe_session_filename(session_id)}.overrides"
+    if count_file.exists():
+        try:
+            return int(count_file.read_text().strip())
+        except (ValueError, OSError):
+            return 0
+    return 0
+
+
+def increment_override_count(session_id: str) -> int:
+    """Increment and return new override count for session."""
+    BLOCK_COUNT_DIR.mkdir(parents=True, exist_ok=True)
+    count_file = BLOCK_COUNT_DIR / f"{_safe_session_filename(session_id)}.overrides"
+    count = get_override_count(session_id) + 1
+    count_file.write_text(str(count))
+    return count
+
+
 def get_last_assistant_message(transcript_path: Path) -> str:
     """Get the last assistant message from transcript."""
     lines = transcript_path.read_text().strip().split("\n")
@@ -201,20 +223,37 @@ def query_opencode(prompt: str) -> str | None:
     return None
 
 
-def parse_response(response: str) -> tuple[str, str]:
-    """Parse OpenCode response into verdict and explanation."""
+def parse_response(response: str) -> tuple[str, str, str | None]:
+    """Parse OpenCode response into verdict, explanation, and optional override reason.
+
+    Returns:
+        (verdict, explanation, override_reason)
+        - verdict: "YES", "NO", or ""
+        - explanation: the violation explanation or empty
+        - override_reason: if OVERRIDE: found, the justification; otherwise None
+    """
     lines = response.split("\n")
-    verdict = lines[0].strip().upper() if lines else ""
+    first_line = lines[0].strip().upper() if lines else ""
+
     # Extract YES or NO from the first line
-    if "YES" in verdict:
+    if "YES" in first_line:
         verdict = "YES"
-    elif "NO" in verdict:
+    elif "NO" in first_line:
         verdict = "NO"
     else:
         verdict = ""
 
-    explanation = "\n".join(lines[2:]) if len(lines) > 2 else ""
-    return verdict, explanation
+    override_reason = None
+    explanation_lines = []
+
+    for line in lines[1:]:
+        stripped = line.strip()
+        if stripped.startswith("OVERRIDE:"):
+            override_reason = stripped[9:].strip()
+        elif stripped:
+            explanation_lines.append(stripped)
+
+    return verdict, "\n".join(explanation_lines), override_reason
 
 
 def load_rules() -> list[dict]:
@@ -292,7 +331,24 @@ Project rules (from CLAUDE.md):
 
     return f"""Your task is to deduce whether: {criteria}
 {claudemd_section}
-Answer with "YES" or "NO" in the first line, followed by two linefeeds, followed by details: {response_prompt}
+Answer with "YES" or "NO" in the first line.
+
+If YES, consider: Is there a legitimate reason the agent should proceed anyway?
+- Does the context justify what would normally be a violation?
+- Is this an edge case the rule wasn't designed for?
+- Would blocking cause more harm than allowing?
+
+If YES but the agent should be allowed to proceed, start the second line with "OVERRIDE:" followed by your reasoning.
+
+Format:
+YES/NO
+
+[If YES] OVERRIDE: <reason why agent should proceed>
+OR
+[If YES] <explanation of violation>
+
+[Blank line]
+Details: {response_prompt}
 
 Agent's message(s):
 
@@ -418,9 +474,11 @@ def main():
             try:
                 response = future.result()
                 if response:
-                    verdict, explanation = parse_response(response)
-                    results[idx] = (rule, response, verdict, explanation)
-                    log(f"Rule '{rule['criteria'][:40]}...' verdict: {verdict}")
+                    verdict, explanation, override_reason = parse_response(response)
+                    results[idx] = (rule, response, verdict, explanation, override_reason)
+                    log(f"Rule '{rule['criteria'][:40]}...' verdict: {verdict}" + (
+                        f" (OVERRIDE: {override_reason[:30]}...)" if override_reason else ""
+                    ))
             except Exception as e:
                 log(f"Error querying rule {idx}: {e}")
 
@@ -442,25 +500,41 @@ def main():
 
     # Check block rules first (in original order)
     for idx in sorted(results.keys()):
-        rule, response, verdict, explanation = results[idx]
+        rule, response, verdict, explanation, override_reason = results[idx]
         if rule["action"] == "block" and verdict == "YES":
-            new_count = increment_block_count(session_id)
-            log(
-                f"BLOCKING (block #{new_count}/{MAX_BLOCKS_PER_SESSION}): {explanation}"
-            )
-            print(
-                json.dumps(
-                    {
+            if override_reason:
+                # Check override limit
+                current_overrides = get_override_count(session_id)
+                if current_overrides >= MAX_OVERRIDES_PER_SESSION:
+                    log(f"Override limit reached ({current_overrides}/{MAX_OVERRIDES_PER_SESSION}), hard block")
+                    new_count = increment_block_count(session_id)
+                    log(f"BLOCKING (#{new_count}): {explanation}")
+                    print(json.dumps({
                         "decision": "block",
                         "reason": f"[Rule: {rule['criteria']}]\n{explanation}",
-                    }
-                )
-            )
-            sys.exit(0)
+                    }))
+                    sys.exit(0)
+                else:
+                    # Log and notify but don't block
+                    new_override_count = increment_override_count(session_id)
+                    log(f"OVERRIDE for rule '{rule['criteria'][:40]}...': {override_reason}")
+                    system_messages.append(
+                        f"🔄 Override: [{rule['criteria']}] {override_reason}\n"
+                        f"(Agent may proceed despite detected concern - override {new_override_count}/{MAX_OVERRIDES_PER_SESSION})"
+                    )
+            else:
+                # Block as usual
+                new_count = increment_block_count(session_id)
+                log(f"BLOCKING (#{new_count}/{MAX_BLOCKS_PER_SESSION}): {explanation}")
+                print(json.dumps({
+                    "decision": "block",
+                    "reason": f"[Rule: {rule['criteria']}]\n{explanation}",
+                }))
+                sys.exit(0)
 
     # No blocks — collect notifications and suggestions into one output
     for idx in sorted(results.keys()):
-        rule, response, verdict, explanation = results[idx]
+        rule, response, verdict, explanation, override_reason = results[idx]
         if rule["action"] == "notify" and verdict == "YES":
             log(f"NOTIFY: {explanation}")
             system_messages.append(
@@ -468,7 +542,7 @@ def main():
             )
 
     for idx in sorted(results.keys()):
-        rule, response, verdict, explanation = results[idx]
+        rule, response, verdict, explanation, override_reason = results[idx]
         if rule["action"] == "suggest" and verdict == "YES":
             log(f"SUGGEST: {explanation}")
             system_messages.append(
