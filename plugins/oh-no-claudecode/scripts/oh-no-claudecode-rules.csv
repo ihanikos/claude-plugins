@@ -1,7 +1,7 @@
 # Agent Guardrails Rules
 # mode: "last" (only last message), "turn" (all messages in current turn), "claudemd" (check against CLAUDE.md rules)
 
-"Is the agent likely to start deviating from its instructions?",turn,block,"Warn that the instructions must be followed precisely or the agent must stop, and explain why it seems like it might be doing something wrong. Respond in first person"
+"Is the agent abandoning tasks, skipping required steps (tests, verification), ignoring explicit instructions, or giving up without troubleshooting?",turn,block,"Warn that the instructions must be followed precisely or the agent must stop, and explain why it seems like it might be doing something wrong. Respond in first person. Note: Brief task completion summaries are acceptable."
 "Is the agent justifying, excusing, or accepting bad code patterns, technical debt, or poor practices as acceptable?",turn,block,"Point out the specific bad patterns being excused and explain why they should be fixed properly."
 "Is the agent telling the user to do something that the agent could and should do itself?",turn,block,"Explain that the agent should perform these actions itself rather than delegating to the user."
 "Is the agent giving up on a task, tool, or operation without proper troubleshooting, retrying, or investigation?",turn,block,"Insist that the agent must troubleshoot, retry, or investigate before giving up."

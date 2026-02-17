@@ -16,3 +16,4 @@ When adding a new plugin to `plugins/`, always complete these steps:
 - Unit tests: `hatch run pytest tests/<plugin-name>/unit/`
 - Eval tests (require OpenCode): `hatch run pytest tests/<plugin-name>/opencode-evals/ -m opencode`
 - All tests: `hatch run pytest tests/ -v`
+- **Never use `--ignore` flags** — the test suite has proper fixtures that auto-start OpenCode or skip tests when unavailable. Using `--ignore` bypasses this infrastructure and hides test failures.
