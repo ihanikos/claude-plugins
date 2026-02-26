@@ -7,7 +7,7 @@
     },
     "ghcr.io/anthropics/devcontainer-features/claude-code:1": {},
     "ghcr.io/devcontainers-extra/features/apt-packages:1": {
-      "packages": "tmux,jq"
+      "packages": "tmux,jq,python3"
     }
   },
   "initializeCommand": "mkdir -p ${localWorkspaceFolder}/.devcontainer/claude-auth && ([ -f ${localEnv:HOME}/.claude/.credentials.json ] && cp ${localEnv:HOME}/.claude/.credentials.json ${localWorkspaceFolder}/.devcontainer/claude-auth/ || echo 'Warning: .credentials.json not found') && ([ -f ${localEnv:HOME}/.claude.json ] && cp ${localEnv:HOME}/.claude.json ${localWorkspaceFolder}/.devcontainer/claude-auth/ || echo 'Warning: .claude.json not found')",
