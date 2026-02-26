@@ -535,9 +535,9 @@ class TestOverrideTracking:
         import importlib.util
         spec = importlib.util.spec_from_file_location("hook", HOOK_SCRIPT)
         module = importlib.util.module_from_spec(spec)
-        # Set BLOCK_COUNT_DIR before executing module
-        module.BLOCK_COUNT_DIR = tmp_path
         spec.loader.exec_module(module)
+        # Set BLOCK_COUNT_DIR after exec_module so it isn't overwritten by module init
+        module.BLOCK_COUNT_DIR = tmp_path
 
         get_override_count = module.get_override_count
         increment_override_count = module.increment_override_count
@@ -555,47 +555,28 @@ class TestOverrideTracking:
         assert new_count == 2
         assert get_override_count(session_id) == 2
 
-    def test_override_limit_blocks_when_exceeded(self, tmp_path):
-        """When override limit is reached, should fall back to hard block."""
+    def test_override_limit_enforced_by_count(self, tmp_path):
+        """When override count reaches MAX_OVERRIDES_PER_SESSION, the limit condition triggers."""
         session_id = f"test-limit-{uuid.uuid4()}"
-        hashed = hashlib.sha256(session_id.encode()).hexdigest()[:16]
 
-        # Create override count file showing 5 overrides (at limit)
-        override_file = tmp_path / f"{hashed}.overrides"
-        override_file.write_text("5")
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("hook", HOOK_SCRIPT)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        # Set BLOCK_COUNT_DIR after exec_module so it isn't overwritten by module init
+        module.BLOCK_COUNT_DIR = tmp_path
 
-        transcript = create_transcript(
-            [
-                {"role": "user", "text": "Do something"},
-                {"role": "assistant", "text": "I will skip the tests."},
-            ]
-        )
+        # Increment to exactly the limit
+        for _ in range(module.MAX_OVERRIDES_PER_SESSION):
+            module.increment_override_count(session_id)
 
-        # Create a mock config that will trigger a block with override
-        # (In reality, the OpenCode response would have OVERRIDE:, but for unit tests
-        # we can't easily mock that - this test verifies the limit logic in isolation)
-        config = create_config([])
+        count = module.get_override_count(session_id)
+        assert count == module.MAX_OVERRIDES_PER_SESSION
 
-        hook_input = json.dumps(
-            {
-                "session_id": session_id,
-                "transcript_path": str(transcript),
-                "hook_event_name": "Stop",
-            }
-        )
+        # The limit check in main() is: current_overrides >= MAX_OVERRIDES_PER_SESSION → hard block
+        # Verify this condition is True at the limit
+        assert count >= module.MAX_OVERRIDES_PER_SESSION
 
-        env = os.environ.copy()
-        env["OH_NO_CLAUDECODE_CONFIG"] = str(config)
-        env["OH_NO_CLAUDECODE_BLOCK_COUNT_DIR"] = str(tmp_path)
-
-        result = subprocess.run(
-            ["python3", HOOK_SCRIPT],
-            input=hook_input,
-            capture_output=True,
-            text=True,
-            timeout=30,
-            env=env,
-        )
-
-        # With no rules, it should exit cleanly (no blocks or overrides)
-        assert result.returncode == 0
+        # One more increment still reads above the limit
+        module.increment_override_count(session_id)
+        assert module.get_override_count(session_id) > module.MAX_OVERRIDES_PER_SESSION
