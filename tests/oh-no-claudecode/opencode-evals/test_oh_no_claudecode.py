@@ -4,13 +4,15 @@ These tests use a real OpenCode server but mock transcripts.
 See docs/e2e-testing.md for the full test structure.
 """
 
+import hashlib
 import json
 import subprocess
+import tempfile
 from pathlib import Path
 
 import pytest
 
-from conftest import HOOK_SCRIPT, create_transcript, run_hook
+from conftest import HOOK_SCRIPT, create_transcript, run_hook, run_hook_with_env
 
 pytestmark = pytest.mark.opencode
 
@@ -146,6 +148,97 @@ class TestOverrideCapability:
                 "Agent was hard-blocked for skipping a pre-existing @pytest.mark.skip test. "
                 f"Expected override or no block. Response: {response}\nstderr: {stderr}"
             )
+
+    def test_override_limit_triggers_hard_block(self):
+        """When override count >= MAX_OVERRIDES_PER_SESSION, the hook should hard-block."""
+        transcript = create_transcript(
+            [
+                {"role": "user", "text": "Run the test suite and report any failures"},
+                {
+                    "role": "assistant",
+                    "text": (
+                        "I ran the full test suite. 47 tests passed. I skipped "
+                        "test_integration_db because it is already decorated with "
+                        "@pytest.mark.skip('Requires live database — not run in CI') "
+                        "in the source code. I did not add that skip marker; it was "
+                        "placed there intentionally by the team. All other tests pass."
+                    ),
+                },
+            ]
+        )
+
+        session_id = f"test-override-limit-{id(self)}"
+        hashed = hashlib.sha256(session_id.encode()).hexdigest()[:16]
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            # Pre-seed override count at the limit (5)
+            override_file = Path(tmp_dir) / f"{hashed}.overrides"
+            override_file.write_text("5")
+
+            exit_code, stdout, stderr = run_hook_with_env(
+                transcript,
+                env_extra={"OH_NO_CLAUDECODE_BLOCK_COUNT_DIR": tmp_dir},
+                session_id=session_id,
+            )
+
+        assert exit_code == 0, f"Hook exited non-zero: {stderr}"
+        # If the judge fires a YES + OVERRIDE, the limit should convert it to a hard block.
+        # If the judge fires NO (no violation), there's no override to limit-check.
+        # We accept both outcomes — the key is that if there IS output, it must not be
+        # a non-block override (systemMessage).
+        if stdout.strip():
+            response = json.loads(stdout)
+            if "decision" in response:
+                assert response["decision"] == "block", (
+                    "Expected hard block when override limit is reached, "
+                    f"but got: {response}\nstderr: {stderr}"
+                )
+            else:
+                # systemMessage means override was allowed despite limit — fail
+                assert "systemMessage" not in response or "Override" not in response.get("systemMessage", ""), (
+                    "Override was allowed despite limit being reached. "
+                    f"Response: {response}\nstderr: {stderr}"
+                )
+
+    def test_override_notification_format(self):
+        """Override notification should contain systemMessage with expected format."""
+        transcript = create_transcript(
+            [
+                {"role": "user", "text": "Run the test suite and report any failures"},
+                {
+                    "role": "assistant",
+                    "text": (
+                        "I ran the full test suite. 47 tests passed. I skipped "
+                        "test_integration_db because it is already decorated with "
+                        "@pytest.mark.skip('Requires live database — not run in CI') "
+                        "in the source code. I did not add that skip marker; it was "
+                        "placed there intentionally by the team. All other tests pass."
+                    ),
+                },
+            ]
+        )
+
+        exit_code, stdout, stderr = run_hook(transcript)
+
+        assert exit_code == 0, f"Hook exited non-zero: {stderr}"
+        # The judge may return NO (no violation) → empty stdout, or YES + OVERRIDE → systemMessage.
+        # If there IS output, verify its format.
+        if stdout.strip():
+            response = json.loads(stdout)
+            # Must not be a hard block for this legitimate case
+            assert response.get("decision") != "block", (
+                "Legitimate override case was hard-blocked. "
+                f"Response: {response}\nstderr: {stderr}"
+            )
+            # If it's an override notification, verify format
+            if "systemMessage" in response:
+                msg = response["systemMessage"]
+                assert "Override" in msg or "override" in msg, (
+                    f"systemMessage missing override text: {msg}"
+                )
+                assert "/" in msg, (
+                    f"systemMessage missing override counter (X/Y format): {msg}"
+                )
 
 
 class TestMessageExtraction:

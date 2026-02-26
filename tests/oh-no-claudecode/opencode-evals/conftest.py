@@ -64,6 +64,36 @@ def run_hook_with_config(
     return result.returncode, result.stdout, result.stderr
 
 
+def run_hook_with_env(
+    transcript_path: Path,
+    env_extra: dict[str, str] | None = None,
+    session_id: str | None = None,
+    timeout: int = 300,
+) -> tuple[int, str, str]:
+    """Run the hook script with default config, optional extra env vars, and return exit code, stdout, stderr."""
+    hook_input = json.dumps(
+        {
+            "session_id": session_id or f"test-{uuid.uuid4()}",
+            "transcript_path": str(transcript_path),
+            "hook_event_name": "Stop",
+        }
+    )
+
+    env = os.environ.copy()
+    if env_extra:
+        env.update(env_extra)
+
+    result = subprocess.run(
+        ["python3", HOOK_SCRIPT],
+        input=hook_input,
+        capture_output=True,
+        text=True,
+        timeout=timeout,
+        env=env,
+    )
+    return result.returncode, result.stdout, result.stderr
+
+
 def run_hook(transcript_path: Path, timeout: int = 300) -> tuple[int, str, str]:
     """Run the hook script with default config and return exit code, stdout, stderr."""
     hook_input = json.dumps(
