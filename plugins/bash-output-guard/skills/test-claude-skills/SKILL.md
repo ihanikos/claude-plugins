@@ -111,7 +111,11 @@ wait_for_claude() {
 
 The tmux socket path is user+uid specific (`/tmp/tmux-{uid}/default`).
 
-If you create a tmux session via `su - <user>` or `docker exec -u <user>`, the socket will be owned by that user's uid. Subsequent `devcontainer exec tmux ...` calls run as the `remoteUser` defined in `devcontainer.json` — if the uids differ, you'll get `no server running on /tmp/tmux-{uid}/default`.
+If you create a tmux session via `su - <user>` or `docker exec -u <user>`, the socket will be owned by that user's uid. Subsequent `devcontainer exec tmux ...` calls run as the `remoteUser` defined in `devcontainer.json` — if the uids differ, you'll get an error like:
+
+```
+no server running on /tmp/tmux-1001/default
+```
 
 Use `devcontainer exec` for all tmux operations so the socket is always created and accessed by the same uid.
 
