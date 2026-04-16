@@ -1,6 +1,7 @@
 # devcontainer-testing
 
-A Claude Code skill for testing plugins, hooks, and skills in an isolated devcontainer environment.
+A Claude Code skill for testing plugins, hooks, and skills in an isolated
+devcontainer environment.
 
 ## What it provides
 
@@ -20,7 +21,7 @@ Install via the Claude Code plugin marketplace.
 
 Invoke the skill in any Claude session:
 
-```
+```text
 /test-claude-skills
 ```
 

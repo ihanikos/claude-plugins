@@ -32,6 +32,7 @@ Create `.devcontainer/devcontainer.json` in the plugin repository:
 ```
 
 **Key points:**
+
 - Uses devcontainer features for Claude Code, Node.js, tmux, and jq
 - Copies both `.credentials.json` (OAuth tokens) AND `.claude.json` (onboarding state) - both are required
 - `initializeCommand` runs on host before container starts
@@ -45,6 +46,7 @@ devcontainer up --workspace-folder .
 ```
 
 If `devcontainer` CLI is not installed:
+
 ```bash
 npm install -g @devcontainers/cli
 ```
@@ -64,6 +66,7 @@ Interactive Claude sessions require a TTY. Use tmux to control Claude inside the
 ### API Response Times
 
 Claude API response times are unpredictable - sometimes fast (5-10s), sometimes slow (60s+), especially:
+
 - First request after starting Claude
 - When using Opus models
 - During high API load
@@ -142,19 +145,23 @@ devcontainer exec --workspace-folder . tmux capture-pane -t claude-test -p -S -5
 When reading captured tmux output, distinguish between submitted and pending input:
 
 **Pending input (NOT yet submitted):**
+
 - Text appears with `❯` prefix on the same line
 - Text appears between two separator lines (`───────...`)
 - Example:
-  ```
+
+  ```text
   ❯ echo hello world
   ─────────────────────────────────────────────────
   ```
 
 **Submitted input (processed by Claude):**
+
 - Text appears WITHOUT `❯` prefix
 - Claude's response (`●` bullets) appears below
 - Example:
-  ```
+
+  ```text
   ❯ echo hello world
 
   ● Bash(echo hello world)
@@ -247,10 +254,13 @@ Common issues with plugin.json:
 1. **Don't specify `hooks` field** - Claude auto-loads `hooks/hooks.json` from plugin root. Specifying it causes "duplicate hooks file" error.
 
 2. **`repository` must be a string**, not an object:
+
    ```json
    "repository": "https://github.com/user/repo"
    ```
+
    Not:
+
    ```json
    "repository": { "type": "git", "url": "..." }
    ```
@@ -266,6 +276,7 @@ Common issues with plugin.json:
    - `~/.claude.json` - Onboarding state (skips first-run setup)
 
 3. **Credentials can become stale**: The `initializeCommand` only copies credentials when the container is created. If your OAuth tokens expire or refresh, the container will have stale credentials (401 errors in debug logs). Refresh them manually:
+
    ```bash
    # Copy fresh credentials into running container
    devcontainer exec --workspace-folder . bash -c 'cat > /home/vscode/.claude/.credentials.json' < ~/.claude/.credentials.json
@@ -283,8 +294,10 @@ Common issues with plugin.json:
    - `u` - Update (in Marketplaces tab)
 
 6. **Debug hooks**: Use environment variables for conditional logging:
+
    ```bash
    [ -n "$MY_HOOK_DEBUG" ] && echo "HOOK TRIGGERED" >> /tmp/hook-debug.log
    ```
+
    Then run with debugging: `MY_HOOK_DEBUG=1 claude --dangerously-skip-permissions`
    Check logs: `devcontainer exec --workspace-folder . cat /tmp/hook-debug.log`
