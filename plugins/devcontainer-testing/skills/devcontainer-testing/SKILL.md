@@ -241,7 +241,7 @@ Look for `✔ enabled` status. If you see `✘ error`, press Enter on the plugin
 Plugins load at startup. After installing or updating:
 
 ```bash
-devcontainer exec --workspace-folder . tmux send-keys -t claude-d  # Exit Claude
+devcontainer exec --workspace-folder . tmux send-keys -t claude-test C-d  # Exit Claude
 sleep 2
 devcontainer exec --workspace-folder . tmux send-keys -t claude-test 'claude --dangerously-skip-permissions' Enter
 sleep 5

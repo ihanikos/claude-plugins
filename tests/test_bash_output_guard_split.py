@@ -62,7 +62,7 @@ def test_marketplace_has_devcontainer_testing_entry():
     assert "tags" in entry, "devcontainer-testing entry missing 'tags'"
 
 
-def _run_hook(command: str, env: "dict | None" = None) -> subprocess.CompletedProcess:
+def _run_hook(command: str, env: dict | None = None) -> subprocess.CompletedProcess:
     payload = json.dumps({"tool_input": {"command": command}})
     return subprocess.run(
         ["bash", str(HOOK_SCRIPT)],
@@ -84,10 +84,13 @@ def test_hook_behavior_preserved_large_output():
         f.write(wrapped_cmd)
         tmp_path = f.name
 
-    exec_result = subprocess.run(["bash", tmp_path], capture_output=True, text=True)
-    assert "[ERROR: Output discarded" in exec_result.stdout, (
-        f"Expected discard message, got: {exec_result.stdout[:200]}"
-    )
+    try:
+        exec_result = subprocess.run(["bash", tmp_path], capture_output=True, text=True)
+        assert "[ERROR: Output discarded" in exec_result.stdout, (
+            f"Expected discard message, got: {exec_result.stdout[:200]}"
+        )
+    finally:
+        Path(tmp_path).unlink(missing_ok=True)
 
 
 def test_hook_behavior_preserved_small_output():
@@ -101,6 +104,9 @@ def test_hook_behavior_preserved_small_output():
         f.write(wrapped_cmd)
         tmp_path = f.name
 
-    exec_result = subprocess.run(["bash", tmp_path], capture_output=True, text=True)
-    assert "hello" in exec_result.stdout, f"Expected 'hello' in output, got: {exec_result.stdout[:200]}"
-    assert "[ERROR: Output discarded" not in exec_result.stdout
+    try:
+        exec_result = subprocess.run(["bash", tmp_path], capture_output=True, text=True)
+        assert "hello" in exec_result.stdout, f"Expected 'hello' in output, got: {exec_result.stdout[:200]}"
+        assert "[ERROR: Output discarded" not in exec_result.stdout
+    finally:
+        Path(tmp_path).unlink(missing_ok=True)
