@@ -1,0 +1,10 @@
+{
+  "name": "devcontainer-testing",
+  "description": "Devcontainer testing guide for Claude Code plugins, hooks, and skills — tmux-based interactive testing, plugin installation via /plugin UI",
+  "version": "1.0.0",
+  "author": {
+    "name": "ihanikos"
+  },
+  "repository": "https://github.com/ihanikos/claude-plugins",
+  "license": "MIT"
+}
