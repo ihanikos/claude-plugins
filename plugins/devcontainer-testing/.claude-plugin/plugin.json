@@ -6,5 +6,6 @@
     "name": "ihanikos"
   },
   "repository": "https://github.com/ihanikos/claude-plugins",
-  "license": "MIT"
+  "license": "MIT",
+  "skills": "./skills/"
 }

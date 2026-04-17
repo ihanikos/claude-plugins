@@ -1,6 +1,7 @@
 """Tests verifying the bash-output-guard / devcontainer-testing plugin split (IHA-1731)."""
 
 import json
+import os
 import subprocess
 import tempfile
 from pathlib import Path
@@ -62,8 +63,9 @@ def test_marketplace_has_devcontainer_testing_entry():
     assert "tags" in entry, "devcontainer-testing entry missing 'tags'"
 
 
-def _run_hook(command: str, env: dict | None = None) -> subprocess.CompletedProcess:
+def _run_hook(command: str, max_bytes: int = 100000) -> subprocess.CompletedProcess:
     payload = json.dumps({"tool_input": {"command": command}})
+    env = {"PATH": os.environ["PATH"], "BASH_OUTPUT_GUARD_MAX_BYTES": str(max_bytes)}
     return subprocess.run(
         ["bash", str(HOOK_SCRIPT)],
         input=payload,
