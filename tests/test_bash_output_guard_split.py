@@ -65,6 +65,7 @@ def test_marketplace_has_devcontainer_testing_entry():
 
 def _run_hook(command: str, max_bytes: int = 100000) -> subprocess.CompletedProcess:
     payload = json.dumps({"tool_input": {"command": command}})
+    # Minimal env for deterministic isolation — only PATH and the guard config variable.
     env = {"PATH": os.environ["PATH"], "BASH_OUTPUT_GUARD_MAX_BYTES": str(max_bytes)}
     return subprocess.run(
         ["bash", str(HOOK_SCRIPT)],
@@ -80,7 +81,9 @@ def _execute_wrapped_command(wrapped_cmd: str, timeout: int = 30) -> subprocess.
         f.write(wrapped_cmd)
         tmp_path = f.name
     try:
-        return subprocess.run(["bash", tmp_path], capture_output=True, text=True, timeout=timeout)
+        result = subprocess.run(["bash", tmp_path], capture_output=True, text=True, timeout=timeout)
+        # Don't assert returncode here — callers decide what return code is expected.
+        return result
     finally:
         Path(tmp_path).unlink(missing_ok=True)
 

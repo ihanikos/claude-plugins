@@ -2,6 +2,17 @@
 
 Prevents runaway bash command output from hanging Claude Code sessions.
 
+## Breaking Change in v2.0.0
+
+The `test-claude-skills` skill has been removed from this plugin and moved to the
+dedicated [`devcontainer-testing`](../devcontainer-testing/) plugin.
+
+**Required action**: If you use `/test-claude-skills`, install the new plugin:
+
+```bash
+/plugin install devcontainer-testing
+```
+
 ## Problem
 
 When Claude runs a bash command that produces massive output (e.g., `grep` on large log files, `seq 1 1000000`), the session can become unresponsive as it tries to process megabytes of text.
@@ -9,6 +20,7 @@ When Claude runs a bash command that produces massive output (e.g., `grep` on la
 ## Solution
 
 This plugin intercepts all Bash tool calls and:
+
 - Captures command output to a temporary file
 - Checks the output size before returning it
 - If output exceeds the limit: discards it entirely and returns a warning with the actual size
@@ -32,17 +44,21 @@ export BASH_OUTPUT_GUARD_MAX_BYTES=200000
 ## Behavior
 
 ### Output under limit
+
 ```
 $ echo "hello"
 hello
 ```
+
 Command runs normally, exit code preserved.
 
 ### Output over limit
+
 ```
 $ seq 1 1000000
 [ERROR: Output discarded - size was 6888896 bytes, limit is 100000 bytes. Command exit code was 0]
 ```
+
 Output is discarded entirely, warning shows actual size and original exit code.
 
 ## Technical Details
