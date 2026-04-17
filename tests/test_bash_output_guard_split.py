@@ -75,24 +75,26 @@ def _run_hook(command: str, max_bytes: int = 100000) -> subprocess.CompletedProc
     )
 
 
+def _execute_wrapped_command(wrapped_cmd: str, timeout: int = 30) -> subprocess.CompletedProcess:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".sh", delete=False) as f:
+        f.write(wrapped_cmd)
+        tmp_path = f.name
+    try:
+        return subprocess.run(["bash", tmp_path], capture_output=True, text=True, timeout=timeout)
+    finally:
+        Path(tmp_path).unlink(missing_ok=True)
+
+
 def test_hook_behavior_preserved_large_output():
     large_cmd = "python3 -c \"print('x' * 200000)\""
     result = _run_hook(large_cmd)
     assert result.returncode == 0, f"Hook exited with {result.returncode}: {result.stderr}"
     output = json.loads(result.stdout)
     wrapped_cmd = output["hookSpecificOutput"]["updatedInput"]["command"]
-
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".sh", delete=False) as f:
-        f.write(wrapped_cmd)
-        tmp_path = f.name
-
-    try:
-        exec_result = subprocess.run(["bash", tmp_path], capture_output=True, text=True)
-        assert "[ERROR: Output discarded" in exec_result.stdout, (
-            f"Expected discard message, got: {exec_result.stdout[:200]}"
-        )
-    finally:
-        Path(tmp_path).unlink(missing_ok=True)
+    exec_result = _execute_wrapped_command(wrapped_cmd)
+    assert "[ERROR: Output discarded" in exec_result.stdout, (
+        f"Expected discard message, got: {exec_result.stdout[:200]}"
+    )
 
 
 def test_hook_behavior_preserved_small_output():
@@ -101,14 +103,6 @@ def test_hook_behavior_preserved_small_output():
     assert result.returncode == 0, f"Hook exited with {result.returncode}: {result.stderr}"
     output = json.loads(result.stdout)
     wrapped_cmd = output["hookSpecificOutput"]["updatedInput"]["command"]
-
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".sh", delete=False) as f:
-        f.write(wrapped_cmd)
-        tmp_path = f.name
-
-    try:
-        exec_result = subprocess.run(["bash", tmp_path], capture_output=True, text=True)
-        assert "hello" in exec_result.stdout, f"Expected 'hello' in output, got: {exec_result.stdout[:200]}"
-        assert "[ERROR: Output discarded" not in exec_result.stdout
-    finally:
-        Path(tmp_path).unlink(missing_ok=True)
+    exec_result = _execute_wrapped_command(wrapped_cmd)
+    assert "hello" in exec_result.stdout, f"Expected 'hello' in output, got: {exec_result.stdout[:200]}"
+    assert "[ERROR: Output discarded" not in exec_result.stdout
