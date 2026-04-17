@@ -1,9 +1,6 @@
 ---
 name: test-claude-skills
 description: Test Claude Code plugins, hooks, and skills in an isolated devcontainer environment. Use when testing Claude Code extensions, plugins, hooks, or skills.
-# NOTE: skill name "test-claude-skills" intentionally differs from directory "devcontainer-testing".
-# Claude Code (with skills: ./skills/ in plugin.json) uses this frontmatter name for invocation.
-# The directory will be renamed to match in IHA-1442.
 ---
 
 # Testing Claude Code Skills/Plugins

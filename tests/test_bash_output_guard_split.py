@@ -36,7 +36,7 @@ def test_devcontainer_testing_plugin_json_valid():
 
 
 def test_devcontainer_testing_skill_exists():
-    skill = DCT_PLUGIN / "skills/devcontainer-testing/SKILL.md"
+    skill = DCT_PLUGIN / "skills/test-claude-skills/SKILL.md"
     assert skill.exists(), "devcontainer-testing SKILL.md missing"
     assert skill.stat().st_size > 0, "SKILL.md is empty"
 
