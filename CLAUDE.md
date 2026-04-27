@@ -9,7 +9,10 @@ When adding a new plugin to `plugins/`, always complete these steps:
    - `hooks/hooks.json` — hook definitions (if applicable)
    - `README.md` — usage and configuration docs
 2. **Register in `.claude-plugin/marketplace.json`** — add an entry to the `plugins` array so users can discover and install it
-3. Put tests in `tests/<plugin-name>/`, not inside the plugin directory — plugins should be installable without shipping test infrastructure
+3. Put tests in `tests/<plugin-name>/`, not inside the plugin directory —
+   plugins should be installable without shipping test infrastructure. This
+   rule is scoped to actual Claude plugin packages, not unrelated packages such
+   as `dev-tooling/*`.
 
 ## Testing
 
