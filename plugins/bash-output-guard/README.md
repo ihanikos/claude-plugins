@@ -45,7 +45,7 @@ export BASH_OUTPUT_GUARD_MAX_BYTES=200000
 
 ### Output under limit
 
-```
+```text
 $ echo "hello"
 hello
 ```
@@ -54,7 +54,7 @@ Command runs normally, exit code preserved.
 
 ### Output over limit
 
-```
+```text
 $ seq 1 1000000
 [ERROR: Output discarded - size was 6888896 bytes, limit is 100000 bytes. Command exit code was 0]
 ```

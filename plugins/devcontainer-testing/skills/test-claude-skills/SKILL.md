@@ -26,7 +26,7 @@ Create `.devcontainer/devcontainer.json` in the plugin repository:
       "packages": "tmux,jq"
     }
   },
-  "initializeCommand": "mkdir -p ${localWorkspaceFolder}/.devcontainer/claude-auth && ([ -f ${localEnv:HOME}/.claude/.credentials.json ] && cp ${localEnv:HOME}/.claude/.credentials.json ${localWorkspaceFolder}/.devcontainer/claude-auth/ || echo 'Warning: .credentials.json not found') && ([ -f ${localEnv:HOME}/.claude.json ] && cp ${localEnv:HOME}/.claude.json ${localWorkspaceFolder}/.devcontainer/claude-auth/ || echo 'Warning: .claude.json not found')",
+  "initializeCommand": "mkdir -p ${localWorkspaceFolder}/.devcontainer/claude-auth && ([ -f ${localEnv:HOME}/.claude/.credentials.json ] && cp ${localEnv:HOME}/.claude/.credentials.json ${localWorkspaceFolder}/.devcontainer/claude-auth/ || echo 'Warning: .credentials.json not found' >&2) && ([ -f ${localEnv:HOME}/.claude.json ] && cp ${localEnv:HOME}/.claude.json ${localWorkspaceFolder}/.devcontainer/claude-auth/ || echo 'Warning: .claude.json not found' >&2)",
   "postCreateCommand": "mkdir -p /home/vscode/.claude && ([ -f .devcontainer/claude-auth/.credentials.json ] && cp .devcontainer/claude-auth/.credentials.json /home/vscode/.claude/ || true) && ([ -f .devcontainer/claude-auth/.claude.json ] && cp .devcontainer/claude-auth/.claude.json /home/vscode/ || true)"
 }
 ```

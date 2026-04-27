@@ -73,6 +73,7 @@ def _run_hook(command: str, max_bytes: int = 100000) -> subprocess.CompletedProc
         capture_output=True,
         text=True,
         env=env,
+        timeout=30,
     )
 
 
