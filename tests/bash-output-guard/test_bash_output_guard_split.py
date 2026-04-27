@@ -6,7 +6,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 BOG_PLUGIN = REPO_ROOT / "plugins/bash-output-guard"
 DCT_PLUGIN = REPO_ROOT / "plugins/devcontainer-testing"
 MARKETPLACE = REPO_ROOT / ".claude-plugin/marketplace.json"
