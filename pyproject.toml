@@ -18,3 +18,6 @@ dev = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+    "opencode: tests that require the opencode CLI and an external LLM service",
+]
