@@ -7,6 +7,7 @@ A collection of Claude Code plugins by ihanikos.
 | Plugin | Description |
 |--------|-------------|
 | [bash-output-guard](../plugins/bash-output-guard) | Prevents runaway bash command output from hanging Claude sessions |
+| [hermes-tweet](../plugins/hermes-tweet) | Guides Hermes Agent X/Twitter plugin install, read-first workflows, and approval-gated actions |
 
 ## Installation
 
@@ -26,6 +27,7 @@ Or install directly:
 
 ```bash
 /plugin install bash-output-guard@ihanikos/claude-plugins
+/plugin install hermes-tweet@ihanikos/claude-plugins
 ```
 
 ## Contributing
