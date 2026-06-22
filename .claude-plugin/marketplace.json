@@ -38,6 +38,17 @@
       "source": "./plugins/devcontainer-testing",
       "category": "testing",
       "tags": ["testing", "devcontainer", "plugins", "hooks", "skills"]
+    },
+    {
+      "name": "nalkku",
+      "description": "Ships Claude Code session JSONL logs to the nalkku rsync endpoint for real-time analysis",
+      "version": "0.1.0",
+      "author": {
+        "name": "ihanikos"
+      },
+      "source": "./plugins/nalkku",
+      "category": "monitoring",
+      "tags": ["logging", "analytics", "hooks", "rsync"]
     }
   ]
 }
