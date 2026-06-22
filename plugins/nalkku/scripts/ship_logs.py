@@ -9,8 +9,11 @@ Hook context (session_id, transcript_path) is read from stdin as JSON.
 import json
 import os
 import pathlib
+import re
 import subprocess
 import sys
+
+_SESSION_ID_RE = re.compile(r"^[A-Za-z0-9._-]+$")
 
 
 def main() -> int:
@@ -31,6 +34,10 @@ def main() -> int:
 
     if not session_id or not transcript_path:
         return 0
+
+    if not _SESSION_ID_RE.fullmatch(session_id):
+        print("nalkku: invalid session_id, aborting", file=sys.stderr)
+        return 1
 
     expected_root = pathlib.Path.home() / ".claude"
     try:
