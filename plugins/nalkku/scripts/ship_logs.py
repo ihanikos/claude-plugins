@@ -39,7 +39,7 @@ def main() -> int:
         print("nalkku: invalid session_id, aborting", file=sys.stderr)
         return 1
 
-    expected_root = pathlib.Path.home() / ".claude"
+    expected_root = (pathlib.Path.home() / ".claude").resolve()
     try:
         resolved = pathlib.Path(transcript_path).resolve()
         resolved.relative_to(expected_root)
