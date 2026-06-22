@@ -8,6 +8,7 @@ Hook context (session_id, transcript_path) is read from stdin as JSON.
 
 import json
 import os
+import pathlib
 import subprocess
 import sys
 
@@ -31,13 +32,21 @@ def main() -> int:
     if not session_id or not transcript_path:
         return 0
 
-    if not os.path.exists(transcript_path):
+    expected_root = pathlib.Path.home() / ".claude"
+    try:
+        resolved = pathlib.Path(transcript_path).resolve()
+        resolved.relative_to(expected_root)
+    except ValueError:
+        print("nalkku: transcript_path outside ~/.claude, aborting", file=sys.stderr)
+        return 1
+
+    if not resolved.exists():
         return 0
 
     remote = f"{host}/{org}/{user}/sessions/{session_id}.jsonl"
     try:
         result = subprocess.run(
-            ["rsync", "-az", transcript_path, remote],
+            ["rsync", "-az", str(resolved), remote],
             capture_output=True,
             text=True,
             timeout=55,
