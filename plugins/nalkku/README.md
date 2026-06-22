@@ -13,9 +13,11 @@ Set these environment variables before enabling the plugin:
 | `NALKKU_USER_SLUG` | Your user slug (provided by the nalkku operator) |
 
 The plugin rsyncs `~/.claude/projects/<session_id>.jsonl` to:
-```
+
+```text
 NALKKU_RSYNC_HOST/NALKKU_ORG_SLUG/NALKKU_USER_SLUG/sessions/<session_id>.jsonl
 ```
+
 
 ## Hooks
 
