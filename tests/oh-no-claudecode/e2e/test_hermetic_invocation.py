@@ -68,6 +68,7 @@ def hermetic_claude_env(outer_claude_config, request):
     return request.getfixturevalue("claude_env")
 
 
+@pytest.mark.opencode
 def test_run_claude_does_not_execute_inherited_global_hooks(
     outer_claude_config, hermetic_claude_env, tmp_path
 ):
@@ -89,6 +90,7 @@ def test_run_claude_does_not_execute_inherited_global_hooks(
     )
 
 
+@pytest.mark.opencode
 def test_run_claude_does_not_recurse_via_global_stop_hook(
     outer_claude_config, hermetic_claude_env, tmp_path
 ):

@@ -7,6 +7,12 @@ Requirements:
 - `claude` CLI on PATH
 - `opencode` CLI on PATH with at least one model configured
 - Valid Claude API credentials
+
+Tests that spawn claude are marked ``opencode`` (registered in
+pyproject.toml), the same marker the opencode-evals tier uses, so runs
+without these prerequisites deselect them explicitly with -m "not opencode".
+When such a test does run and a required CLI is absent, it fails with a
+clear error — it never silently skips (root CLAUDE.md testing conventions).
 """
 
 import json
@@ -65,33 +71,21 @@ def build_claude_command(
     return _claude_argv(plugin_dir, prompt), build_claude_env(tmp_path)
 
 
-def _claude_available() -> bool:
-    """Check if claude CLI is available."""
-    return shutil.which("claude") is not None
+def _require_spawn_prerequisites() -> None:
+    """Fail with a clear error when the CLIs needed to spawn claude are absent.
 
-
-def _opencode_available() -> bool:
-    """Check if opencode CLI is available."""
-    return shutil.which("opencode") is not None
-
-
-E2E_DIR = Path(__file__).resolve().parent
-
-
-def pytest_collection_modifyitems(config, items):
-    """Skip e2e tests when prerequisites are missing."""
-    skip_reasons = []
-    if not _claude_available():
-        skip_reasons.append("claude CLI not available")
-    if not _opencode_available():
-        skip_reasons.append("opencode CLI not available")
-
-    if skip_reasons:
-        reason = "; ".join(skip_reasons)
-        skip_marker = pytest.mark.skip(reason=reason)
-        for item in items:
-            if Path(item.fspath).resolve().is_relative_to(E2E_DIR):
-                item.add_marker(skip_marker)
+    Root CLAUDE.md testing conventions: a test that needs an external service
+    must fail with a clear error when it is absent — never silently skip.
+    """
+    missing = [cli for cli in ("claude", "opencode") if shutil.which(cli) is None]
+    if missing:
+        pytest.fail(
+            "oh-no-claudecode e2e tests spawn a real claude session and need "
+            f"these CLIs on PATH: {', '.join(missing)} (missing). Install "
+            "them, or deselect the claude-spawning tests explicitly with "
+            "-m 'not opencode'.",
+            pytrace=False,
+        )
 
 
 @pytest.fixture
@@ -115,7 +109,10 @@ def claude_env(rules_config, tmp_path):
     - Unsets CLAUDECODE to allow subprocess execution
     - Points OH_NO_CLAUDECODE_CONFIG to the test's rules file
     - Points block count dir to tmp to avoid polluting real state
+
+    Fails with a clear error when the claude/opencode CLIs are absent.
     """
+    _require_spawn_prerequisites()
     env = build_claude_env(tmp_path)
     env["OH_NO_CLAUDECODE_CONFIG"] = str(rules_config)
     env["OH_NO_CLAUDECODE_BLOCK_COUNT_DIR"] = str(tmp_path / "blocks")
