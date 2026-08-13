@@ -47,9 +47,9 @@ def _write_outer_settings(outer_dir: Path, hook_command: str) -> None:
 def outer_claude_config(tmp_path, monkeypatch):
     """An outer CLAUDE_CONFIG_DIR exported to the test process environment.
 
-    Set before claude_env is built so the spawned-process env construction
-    demonstrably overrides an inherited CLAUDE_CONFIG_DIR rather than merely
-    running without one.
+    Set before claude_env is built (ordering enforced by hermetic_claude_env)
+    so the spawned-process env construction demonstrably overrides an
+    inherited CLAUDE_CONFIG_DIR rather than merely running without one.
     """
     outer_dir = tmp_path / "outer-claude-config"
     outer_dir.mkdir()
@@ -57,17 +57,28 @@ def outer_claude_config(tmp_path, monkeypatch):
     return outer_dir
 
 
+@pytest.fixture
+def hermetic_claude_env(outer_claude_config, request):
+    """claude_env built while the outer CLAUDE_CONFIG_DIR is exported.
+
+    Depends on outer_claude_config and only then instantiates claude_env, so
+    build_claude_env() demonstrably copies a process environment that already
+    carries the inherited CLAUDE_CONFIG_DIR and overrides it.
+    """
+    return request.getfixturevalue("claude_env")
+
+
 def test_run_claude_does_not_execute_inherited_global_hooks(
-    outer_claude_config, claude_env, tmp_path
+    outer_claude_config, hermetic_claude_env, tmp_path
 ):
     """No hook from any config dir other than the isolated one fires."""
     sentinel_marker = tmp_path / "sentinel-hook-ran"
     _write_outer_settings(outer_claude_config, f"touch {sentinel_marker}")
 
     # The fixture's env must point at the isolated inner dir, not the outer one.
-    assert claude_env["CLAUDE_CONFIG_DIR"] != str(outer_claude_config)
+    assert hermetic_claude_env["CLAUDE_CONFIG_DIR"] != str(outer_claude_config)
 
-    result, _events = run_claude("Say hello", claude_env)
+    result, _events = run_claude("Say hello", hermetic_claude_env)
 
     assert result.returncode == 0, (
         f"claude exited with {result.returncode}\nstderr: {result.stderr[:500]}"
@@ -79,7 +90,7 @@ def test_run_claude_does_not_execute_inherited_global_hooks(
 
 
 def test_run_claude_does_not_recurse_via_global_stop_hook(
-    outer_claude_config, claude_env, tmp_path
+    outer_claude_config, hermetic_claude_env, tmp_path
 ):
     """The original recursion vector (a global hook spawning pytest) is dead.
 
@@ -94,9 +105,9 @@ def test_run_claude_does_not_recurse_via_global_stop_hook(
         f"touch {hook_marker} && pytest --version > {nested_pytest_output} 2>&1",
     )
 
-    assert claude_env["CLAUDE_CONFIG_DIR"] != str(outer_claude_config)
+    assert hermetic_claude_env["CLAUDE_CONFIG_DIR"] != str(outer_claude_config)
 
-    result, _events = run_claude("Say hello", claude_env)
+    result, _events = run_claude("Say hello", hermetic_claude_env)
 
     assert result.returncode == 0, (
         f"claude exited with {result.returncode}\nstderr: {result.stderr[:500]}"
