@@ -1,10 +1,8 @@
 """Tests that e2e claude sessions are spawned hermetically (IHA-2132).
 
-The spawned claude must not inherit the developer's global ~/.claude
-configuration: global Stop hooks registered there re-enter the test suite
-(hook → pytest → e2e test → claude → hook → …), recursing without bound.
-These tests verify the spawned process's CLAUDE_CONFIG_DIR is an isolated
-empty directory, so no inherited hook can fire and no recursion can start.
+Verifies the spawned claude process's CLAUDE_CONFIG_DIR is an isolated
+directory carrying no settings or hooks, so no hook from the developer's
+own configuration can fire and no such hook can re-enter the test suite.
 """
 
 import json
@@ -22,7 +20,12 @@ def test_build_claude_command_sets_isolated_claude_config_dir(tmp_path):
     config_dir = Path(env["CLAUDE_CONFIG_DIR"])
     home_claude = Path.home() / ".claude"
     assert config_dir.is_dir()
-    assert not any(config_dir.iterdir()), "isolated config dir must be empty"
+    # The isolated dir may carry copied credentials (auth only), but must
+    # contain no settings, plugins, or hooks.
+    contents = {p.name for p in config_dir.iterdir()}
+    assert contents <= {".credentials.json"}, (
+        f"isolated config dir must carry no settings/hooks: {contents}"
+    )
     assert config_dir != home_claude
     assert not config_dir.is_relative_to(home_claude)
 
@@ -34,9 +37,8 @@ def test_build_claude_command_sets_isolated_claude_config_dir(tmp_path):
 def _write_outer_settings(outer_dir: Path, hook_command: str) -> None:
     """Register hook_command as a SessionStart and Stop hook in outer_dir.
 
-    Simulates a developer's global ~/.claude/settings.json. SessionStart is
-    included because print mode (-p) fires it; Stop reproduces the original
-    recursion vector.
+    Simulates a developer's user-level ~/.claude/settings.json. SessionStart
+    is included because print mode (-p) fires it.
     """
     hook_entry = [{"hooks": [{"type": "command", "command": hook_command}]}]
     settings = {"hooks": {"SessionStart": hook_entry, "Stop": hook_entry}}
@@ -68,7 +70,6 @@ def hermetic_claude_env(outer_claude_config, request):
     return request.getfixturevalue("claude_env")
 
 
-@pytest.mark.opencode
 def test_run_claude_does_not_execute_inherited_global_hooks(
     outer_claude_config, hermetic_claude_env, tmp_path
 ):
@@ -90,15 +91,13 @@ def test_run_claude_does_not_execute_inherited_global_hooks(
     )
 
 
-@pytest.mark.opencode
 def test_run_claude_does_not_recurse_via_global_stop_hook(
     outer_claude_config, hermetic_claude_env, tmp_path
 ):
-    """The original recursion vector (a global hook spawning pytest) is dead.
+    """A user-level hook that writes a marker and spawns pytest must not fire.
 
-    Reproduces the python-pytest-passes.sh vector: a hook that writes a marker
-    and spawns pytest. Neither the marker nor any output from a nested pytest
-    may appear, bounding the process tree to pytest → claude.
+    Neither the marker nor any output from a nested pytest may appear,
+    bounding the process tree to pytest → claude.
     """
     hook_marker = tmp_path / "recursion-hook-ran"
     nested_pytest_output = tmp_path / "nested-pytest-output"

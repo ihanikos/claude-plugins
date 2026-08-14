@@ -9,13 +9,7 @@ Stop and SessionEnd hooks require an interactive session.
 
 import json
 
-import pytest
 from conftest import run_claude
-
-# These tests spawn a real claude session, which requires the opencode CLI
-# (the plugin's SessionStart hook acquires the opencode server) and an
-# external LLM — same prerequisites the opencode marker gates elsewhere.
-pytestmark = pytest.mark.opencode
 
 
 class TestPluginLoads:

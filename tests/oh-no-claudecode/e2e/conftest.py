@@ -8,11 +8,8 @@ Requirements:
 - `opencode` CLI on PATH with at least one model configured
 - Valid Claude API credentials
 
-Tests that spawn claude are marked ``opencode`` (registered in
-pyproject.toml), the same marker the opencode-evals tier uses, so runs
-without these prerequisites deselect them explicitly with -m "not opencode".
-When such a test does run and a required CLI is absent, it fails with a
-clear error — it never silently skips (root CLAUDE.md testing conventions).
+When a required CLI is absent, tests that spawn claude fail with a clear
+error — they never silently skip (root CLAUDE.md testing conventions).
 """
 
 import json
@@ -38,22 +35,24 @@ def _claude_argv(plugin_dir: Path, prompt: str) -> list[str]:
     ]
 
 
-def build_claude_env(
-    tmp_path: Path, base_env: dict[str, str] | None = None
-) -> dict[str, str]:
+def build_claude_env(tmp_path: Path) -> dict[str, str]:
     """Build a hermetic environment for a spawned claude process.
 
-    Sets CLAUDE_CONFIG_DIR to an isolated, empty directory under ``tmp_path``
-    so the spawned claude reads no global ``~/.claude`` settings and loads no
-    inherited hooks — only the plugin passed via ``--plugin-dir``. Without
-    this, global Stop hooks re-enter the test suite and the e2e tier recurses
-    (spawned claude → global hook → pytest → spawned claude → …).
+    Sets CLAUDE_CONFIG_DIR to an isolated directory under ``tmp_path`` so the
+    spawned claude reads no user-level ``~/.claude`` settings and loads no
+    inherited hooks — only the plugin passed via ``--plugin-dir``. Stored
+    credentials (``~/.claude/.credentials.json``), which carry auth and no
+    hooks, are copied into the isolated directory when present so the spawned
+    claude stays authenticated on machines using subscription/OAuth login.
 
     Also unsets CLAUDECODE so claude allows subprocess execution.
     """
     config_dir = tmp_path / "claude-config"
     config_dir.mkdir(parents=True, exist_ok=True)
-    env = dict(os.environ if base_env is None else base_env)
+    real_credentials = Path.home() / ".claude" / ".credentials.json"
+    if real_credentials.is_file():
+        shutil.copy(real_credentials, config_dir / ".credentials.json")
+    env = os.environ.copy()
     env.pop("CLAUDECODE", None)
     env["CLAUDE_CONFIG_DIR"] = str(config_dir)
     return env
@@ -82,8 +81,7 @@ def _require_spawn_prerequisites() -> None:
         pytest.fail(
             "oh-no-claudecode e2e tests spawn a real claude session and need "
             f"these CLIs on PATH: {', '.join(missing)} (missing). Install "
-            "them, or deselect the claude-spawning tests explicitly with "
-            "-m 'not opencode'.",
+            "them to run the e2e tier.",
             pytrace=False,
         )
 
@@ -123,8 +121,14 @@ def run_claude(prompt, claude_env, timeout=120, cwd=None):
     """Run claude in print mode with the repo plugin loaded.
 
     Uses --plugin-dir to load the local repo version of oh-no-claudecode.
+    By default runs claude in an isolated working directory (a sibling of the
+    isolated CLAUDE_CONFIG_DIR) so no project-level .claude/settings.json is
+    picked up from the inherited working directory; pass cwd to override.
     Returns (subprocess.CompletedProcess, list of parsed JSON events).
     """
+    if cwd is None:
+        cwd = Path(claude_env["CLAUDE_CONFIG_DIR"]).parent / "claude-cwd"
+        cwd.mkdir(parents=True, exist_ok=True)
     result = subprocess.run(
         _claude_argv(PLUGIN_DIR, prompt),
         capture_output=True,
