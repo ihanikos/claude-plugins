@@ -9,7 +9,11 @@ Stop and SessionEnd hooks require an interactive session.
 
 import json
 
+import pytest
+
 from conftest import run_claude
+
+pytestmark = pytest.mark.needs_claude_cli
 
 
 class TestPluginLoads:

@@ -20,4 +20,5 @@ dev = [
 testpaths = ["tests"]
 markers = [
     "opencode: tests that require the opencode CLI and an external LLM service",
+    "needs_claude_cli: e2e tests that spawn a real claude session and need the claude and opencode CLIs on PATH",
 ]
