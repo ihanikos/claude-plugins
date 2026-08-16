@@ -19,7 +19,7 @@
     },
     {
       "name": "oh-no-claudecode",
-      "description": "LLM-as-judge behavior monitoring for Claude Code — blocks deviations, detects workarounds, suggests next actions",
+      "description": "LLM-as-judge behavior monitoring for Claude Code - blocks deviations, detects workarounds, suggests next actions",
       "version": "1.0.0",
       "author": {
         "name": "ihanikos"
@@ -30,7 +30,7 @@
     },
     {
       "name": "devcontainer-testing",
-      "description": "Devcontainer testing guide for Claude Code plugins, hooks, and skills — tmux-based interactive testing, plugin installation via /plugin UI",
+      "description": "Devcontainer testing guide for Claude Code plugins, hooks, and skills - tmux-based interactive testing, plugin installation via /plugin UI",
       "version": "1.0.0",
       "author": {
         "name": "ihanikos"
@@ -38,6 +38,18 @@
       "source": "./plugins/devcontainer-testing",
       "category": "testing",
       "tags": ["testing", "devcontainer", "plugins", "hooks", "skills"]
+    },
+    {
+      "name": "hermes-tweet",
+      "description": "Hermes Agent X/Twitter plugin guide for read-first workflows and approval-gated actions",
+      "version": "0.1.6",
+      "author": {
+        "name": "Xquik",
+        "url": "https://github.com/Xquik-dev"
+      },
+      "source": "./plugins/hermes-tweet",
+      "category": "social-media",
+      "tags": ["hermes-agent", "xquik", "twitter", "x", "automation", "skills"]
     }
   ]
 }
